@@ -86,8 +86,7 @@ object LaborLeadingEngine {
         if (composite.isEmpty()) return null
 
         val sortedMonths = composite.keys.sorted()
-        val last12 = sortedMonths.takeLast(12)
-        val points = last12.map { m ->
+        val points = sortedMonths.takeLast(48).map { m ->
             ChartPoint(EngineBase.formatMonthLabel(m), composite[m]!!.toFloat())
         }
 

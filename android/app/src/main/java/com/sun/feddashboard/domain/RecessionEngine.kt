@@ -9,16 +9,18 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * Recession Risk Index (RRI) — a forward-looking composite designed to
- * predict recession 6–18 months ahead using pure FRED data.
+ * Recession Risk Index (RRI) — 8-series leading composite designed to predict
+ * recession 6–18 months ahead using pure FRED data plus two computed ratios.
  *
- * Series rationale:
- *  T10Y2Y  — Yield curve (10Y−2Y): inversion is the single best recession predictor
- *  T10Y3M  — Yield curve (10Y−3M): confirms inversion signal
- *  BAMLH0A0HYM2 — HY credit spread: tightening = risk-on, widening = recession risk
- *  PERMIT  — Building permits YoY: housing leads the economy by ~6–12 months
- *  ICSA    — Initial claims YoY: early signal of labor stress
- *  UMCSENT — UMich consumer sentiment: consumer confidence leads spending
+ * Weights (sum = 1.0):
+ *   T10Y2Y        20%  inv  — yield curve: single best predictor
+ *   T10Y3M        15%  inv  — confirms inversion signal
+ *   BAMLH0A0HYM2  15%  inv  — HY credit spread: financial stress
+ *   PERMIT        15%  YoY  — building permits: housing leads economy 6–12m
+ *   ICSA          10%  YoY inv — initial claims: early labor stress
+ *   UMCSENT       10%       — consumer confidence leads spending
+ *   Copper/Gold   10%       — cross-asset growth proxy (PCOPPUSDM/GOLDAMGBD228NLBM)
+ *   Real M2        5%  YoY  — real money supply growth (M2SL/CPIAUCSL)
  *
  * Regimes: LOW RISK ≥ 0.5 | STABLE ≥ 0.0 | CAUTION ≥ -0.5 | WARNING ≥ -1.0 | CRITICAL < -1.0
  */
@@ -32,17 +34,24 @@ object RecessionEngine {
         val invert: Boolean,
     )
 
-    private val SERIES = listOf(
-        // Yield curve — most powerful leading signal, no YoY (already a spread)
-        SeriesSpec("T10Y2Y",         "10Y−2Y Yield Spread",   0.25, yoy = false, invert = true),
-        SeriesSpec("T10Y3M",         "10Y−3M Yield Spread",   0.20, yoy = false, invert = true),
-        // Credit stress
-        SeriesSpec("BAMLH0A0HYM2",   "HY Credit Spread",      0.20, yoy = false, invert = true),
-        // Real economy leading signals
+    private val STANDARD_SERIES = listOf(
+        SeriesSpec("T10Y2Y",         "10Y−2Y Yield Spread",   0.20, yoy = false, invert = true),
+        SeriesSpec("T10Y3M",         "10Y−3M Yield Spread",   0.15, yoy = false, invert = true),
+        SeriesSpec("BAMLH0A0HYM2",   "HY Credit Spread",      0.15, yoy = false, invert = true),
         SeriesSpec("PERMIT",         "Building Permits",      0.15, yoy = true,  invert = false),
         SeriesSpec("ICSA",           "Initial Claims",        0.10, yoy = true,  invert = true),
         SeriesSpec("UMCSENT",        "Consumer Sentiment",    0.10, yoy = false, invert = false),
     )
+
+    // Computed: PCOPPUSDM / GOLDAMGBD228NLBM
+    // High ratio = industrial demand > safe haven demand = growth signal
+    private val COPPER_GOLD = SeriesSpec("COPPER_GOLD", "Copper/Gold Ratio",  0.10, yoy = false, invert = false)
+
+    // Computed: M2SL / CPIAUCSL (YoY applied via spec)
+    // Positive real M2 growth = healthy money supply conditions
+    private val REAL_M2     = SeriesSpec("REAL_M2",     "Real M2 Growth",     0.05, yoy = true,  invert = false)
+
+    private val ALL_SPECS = STANDARD_SERIES + listOf(COPPER_GOLD, REAL_M2)
 
     fun compute(fredApiKey: String): LeadingResult? {
         if (fredApiKey.isBlank()) return null
@@ -51,12 +60,31 @@ object RecessionEngine {
             .format(DateTimeFormatter.ISO_LOCAL_DATE)
 
         val rawSeries = mutableMapOf<String, List<Pair<String, Double?>>>()
-        for (spec in SERIES) {
+
+        // Standard FRED series
+        for (spec in STANDARD_SERIES) {
             val data = try {
                 FredClient.fetchSeries(spec.id, fredApiKey, startDate)
             } catch (_: Exception) { emptyList() }
             if (data.isNotEmpty()) rawSeries[spec.id] = data
         }
+
+        // Copper/Gold ratio: PCOPPUSDM / GOLDAMGBD228NLBM
+        try {
+            val copper = FredClient.fetchSeries("PCOPPUSDM",        fredApiKey, startDate)
+            val gold   = FredClient.fetchSeries("GOLDAMGBD228NLBM", fredApiKey, startDate)
+            val ratio  = alignedRatio(copper, gold)
+            if (ratio.isNotEmpty()) rawSeries[COPPER_GOLD.id] = ratio
+        } catch (_: Exception) { }
+
+        // Real M2: M2SL / CPIAUCSL (YoY applied later via spec.yoy = true)
+        try {
+            val m2  = FredClient.fetchSeries("M2SL",      fredApiKey, startDate)
+            val cpi = FredClient.fetchSeries("CPIAUCSL",  fredApiKey, startDate)
+            val rm2 = alignedRatio(m2, cpi)
+            if (rm2.isNotEmpty()) rawSeries[REAL_M2.id] = rm2
+        } catch (_: Exception) { }
+
         if (rawSeries.isEmpty()) return null
 
         val allMonths = rawSeries.values
@@ -66,7 +94,7 @@ object RecessionEngine {
         val weightedZScores = mutableMapOf<String, Map<String, Double?>>()
         val rawZScores      = mutableMapOf<String, Map<String, Double?>>()
 
-        for (spec in SERIES) {
+        for (spec in ALL_SPECS) {
             val raw = rawSeries[spec.id] ?: continue
             val filled    = EngineBase.forwardFill(allMonths, raw.toMap())
             val processed = if (spec.yoy) EngineBase.applyYoY(allMonths, filled) else filled
@@ -76,7 +104,7 @@ object RecessionEngine {
             weightedZScores[spec.id] = zScores.mapValues { (_, v) -> v?.let { it * sign * spec.weight } }
         }
 
-        val weightBySeries = SERIES.associate { it.id to it.weight }
+        val weightBySeries = ALL_SPECS.associate { it.id to it.weight }
         val composite = mutableMapOf<String, Double>()
         for (month in allMonths) {
             var num = 0.0; var den = 0.0
@@ -88,13 +116,14 @@ object RecessionEngine {
         }
         if (composite.isEmpty()) return null
 
-        val sorted   = composite.keys.sorted()
-        val last12   = sorted.takeLast(12)
-        val points   = last12.map { m -> ChartPoint(EngineBase.formatMonthLabel(m), composite[m]!!.toFloat()) }
+        val sorted    = composite.keys.sorted()
+        val points    = sorted.takeLast(48).map { m ->
+            ChartPoint(EngineBase.formatMonthLabel(m), composite[m]!!.toFloat())
+        }
         val lastMonth = sorted.last()
-        val current  = composite[lastMonth]!!
+        val current   = composite[lastMonth]!!
 
-        val components = SERIES.mapNotNull { spec ->
+        val components = ALL_SPECS.mapNotNull { spec ->
             val z    = rawZScores[spec.id]?.get(lastMonth) ?: return@mapNotNull null
             val sign = if (spec.invert) -1.0 else 1.0
             ComponentReading(spec.id, spec.label, z, spec.weight, z * sign * spec.weight)
@@ -108,6 +137,18 @@ object RecessionEngine {
             components    = components,
             lastDataMonth = EngineBase.formatMonthLabel(lastMonth),
         )
+    }
+
+    /** Aligns two date-value lists by date and divides numerator / denominator. */
+    private fun alignedRatio(
+        numerator: List<Pair<String, Double?>>,
+        denominator: List<Pair<String, Double?>>,
+    ): List<Pair<String, Double?>> {
+        val denMap = denominator.toMap()
+        return numerator.map { (date, num) ->
+            val den = denMap[date]
+            date to if (num != null && den != null && den != 0.0) num / den else null
+        }
     }
 
     private fun classifyRegime(score: Double) = when {

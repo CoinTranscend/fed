@@ -8,6 +8,8 @@ import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -18,6 +20,8 @@ import java.io.IOException
 
 /**
  * Renders a high-resolution chart to a Bitmap and saves it to Downloads.
+ * Visual design matches OverlayChartView: regime background bands, y-axis
+ * labels, threshold gridlines, clean lines with no area fill.
  * Must be called from an IO dispatcher.
  */
 object ChartExporter {
@@ -25,10 +29,6 @@ object ChartExporter {
     private const val HD_W = 2000
     private const val HD_H = 900
 
-    /**
-     * Export a single overlay chart (one index pair) to Downloads.
-     * Returns the saved file path on success, null on failure.
-     */
     fun exportSingle(
         context: Context,
         title: String,
@@ -42,24 +42,17 @@ object ChartExporter {
     ): String? {
         val bitmap = Bitmap.createBitmap(HD_W, HD_H, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.drawColor(Color.parseColor("#F5F5F7"))
+        canvas.drawColor(Color.WHITE)
 
-        val scale = HD_W / 420f   // 420dp reference width
+        val scale = HD_W / 420f
 
-        drawRow(
-            canvas, title,
-            regular, leading,
-            regRegime, leadRegime,
-            regScore, leadScore,
-            height = HD_H.toFloat(),
-            width  = HD_W.toFloat(),
-            scale  = scale,
-        )
+        drawRow(canvas, title, regular, leading, regRegime, leadRegime, regScore, leadScore,
+            height = HD_H.toFloat(), width = HD_W.toFloat(), scale = scale)
 
         return saveToDownloads(context, bitmap, fileName)
     }
 
-    // ─── Drawing ───────────────────────────────────────────────────────────────
+    // ── Drawing ───────────────────────────────────────────────────────────────
 
     fun drawRow(
         canvas: Canvas,
@@ -75,60 +68,81 @@ object ChartExporter {
         scale: Float,
     ) {
         val regularColor = colorFromRegime(regRegime)
-        val leadingColor = dimColor(colorFromRegime(leadRegime))
 
+        // ── Text paints ──────────────────────────────────────────────────────
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#1C1C1E")
-            textSize = 14f * scale
+            color          = Color.parseColor("#1C1C1E")
+            textSize       = 13f * scale
             isFakeBoldText = true
         }
         val scorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#6E6E73")
-            textSize = 11f * scale
+            color    = Color.parseColor("#6E6E73")
+            textSize = 10f * scale
         }
-        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#9E9E9E")
-            textSize = 9f * scale
+        val axisLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color     = Color.parseColor("#9E9E9E")
+            textSize  = 8f * scale
+            textAlign = Paint.Align.RIGHT
+            typeface  = Typeface.MONOSPACE
+        }
+        val xLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color     = Color.parseColor("#9E9E9E")
+            textSize  = 8f * scale
             textAlign = Paint.Align.CENTER
         }
-        val zeroLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#CCCCCC")
-            strokeWidth = 1.5f * scale
-            style = Paint.Style.STROKE
-            pathEffect = DashPathEffect(floatArrayOf(6f * scale, 3f * scale), 0f)
-        }
-        val regularLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = regularColor
-            strokeWidth = 3.5f * scale
-            style = Paint.Style.STROKE
-            strokeJoin = Paint.Join.ROUND
-            strokeCap = Paint.Cap.ROUND
-        }
-        val leadingLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = leadingColor
-            strokeWidth = 2.5f * scale
-            style = Paint.Style.STROKE
-            strokeJoin = Paint.Join.ROUND
-            strokeCap = Paint.Cap.ROUND
-            pathEffect = DashPathEffect(floatArrayOf(9f * scale, 5f * scale), 0f)
-        }
-        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(35, Color.red(regularColor), Color.green(regularColor), Color.blue(regularColor))
-            style = Paint.Style.FILL
-        }
         val calloutPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = 12f * scale
+            textSize       = 11f * scale
             isFakeBoldText = true
         }
-        val legendPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = 9f * scale
-            color = Color.parseColor("#6E6E73")
+        val legendTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 8.5f * scale
+            color    = Color.parseColor("#757575")
+        }
+        val badgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color          = Color.WHITE
+            textSize       = 7.5f * scale
+            isFakeBoldText = true
+            textAlign      = Paint.Align.CENTER
         }
 
-        val padL = 20f * scale
-        val padR = 80f * scale   // generous right pad so callout labels never clip
+        // ── Line paints ──────────────────────────────────────────────────────
+        val regularLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = regularColor
+            strokeWidth = 3f * scale
+            style       = Paint.Style.STROKE
+            strokeJoin  = Paint.Join.ROUND
+            strokeCap   = Paint.Cap.ROUND
+        }
+        val leadingLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#BDBDBD")
+            strokeWidth = 2f * scale
+            style       = Paint.Style.STROKE
+            strokeJoin  = Paint.Join.ROUND
+            strokeCap   = Paint.Cap.ROUND
+            pathEffect  = DashPathEffect(floatArrayOf(9f * scale, 5f * scale), 0f)
+        }
+        val zeroLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#BCBCBC")
+            strokeWidth = 1.2f * scale
+            style       = Paint.Style.STROKE
+        }
+        val gridLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#EBEBEB")
+            strokeWidth = 0.8f * scale
+            style       = Paint.Style.STROKE
+        }
+        val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
+        val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
+
+        // ── Layout ───────────────────────────────────────────────────────────
+        val padL = 52f * scale
+        val padR = 82f * scale
         val padT = 60f * scale
-        val padB = 50f * scale
+        val padB = 48f * scale
         val chartW = width  - padL - padR
         val chartH = height - padT - padB
 
@@ -147,8 +161,8 @@ object ChartExporter {
         val allValues = regular.map { it.value } + leading.map { it.value }
         if (allValues.isEmpty()) return
 
-        val minVal = minOf(allValues.min(), -0.3f)
-        val maxVal = maxOf(allValues.max(),  0.3f)
+        val minVal = minOf(allValues.min(), -1.4f)
+        val maxVal = maxOf(allValues.max(),  1.4f)
         val range  = (maxVal - minVal).coerceAtLeast(0.01f)
 
         val rn = regular.size.coerceAtLeast(1)
@@ -158,81 +172,116 @@ object ChartExporter {
         fun xOfL(i: Int) = padL + i * chartW / (ln - 1).coerceAtLeast(1)
         fun yOf(v: Float) = padT + chartH * (1f - (v - minVal) / range)
 
-        val zeroY = yOf(0f).coerceIn(padT, padT + chartH)
-        canvas.drawLine(padL, zeroY, padL + chartW, zeroY, zeroLinePaint)
-
-        // Fill
-        if (regular.size >= 2) {
-            val fp = Path().apply {
-                moveTo(xOfR(0), zeroY)
-                lineTo(xOfR(0), yOf(regular[0].value))
-                for (i in 1 until rn) lineTo(xOfR(i), yOf(regular[i].value))
-                lineTo(xOfR(rn - 1), zeroY)
-                close()
-            }
-            canvas.drawPath(fp, fillPaint)
+        // 1. Regime background bands
+        data class Band(val lo: Float, val hi: Float, val argb: Int)
+        val bands = listOf(
+            Band(0.5f,   maxVal,  Color.argb(18, 67,  160, 71)),
+            Band(0.0f,   0.5f,   Color.argb(18, 0,   137, 123)),
+            Band(-0.5f,  0.0f,   Color.argb(18, 249, 168, 37)),
+            Band(-1.0f, -0.5f,   Color.argb(20, 230, 74,  25)),
+            Band(minVal, -1.0f,  Color.argb(22, 198, 40,  40)),
+        )
+        for (b in bands) {
+            val lo = b.lo.coerceAtLeast(minVal)
+            val hi = b.hi.coerceAtMost(maxVal)
+            if (lo >= hi) continue
+            val yTop = yOf(hi).coerceIn(padT, padT + chartH)
+            val yBot = yOf(lo).coerceIn(padT, padT + chartH)
+            if (yBot <= yTop) continue
+            bandFillPaint.color = b.argb
+            canvas.drawRect(padL, yTop, padL + chartW, yBot, bandFillPaint)
         }
 
-        // Leading line
-        if (leading.size >= 2) {
-            val p = Path().apply {
-                moveTo(xOfL(0), yOf(leading[0].value))
-                for (i in 1 until ln) lineTo(xOfL(i), yOf(leading[i].value))
+        // 2. Gridlines + y-axis labels
+        for (t in listOf(1.5f, 1.0f, 0.5f, 0f, -0.5f, -1.0f, -1.5f)) {
+            if (t < minVal - 0.05f || t > maxVal + 0.05f) continue
+            val y  = yOf(t).coerceIn(padT, padT + chartH)
+            val lp = if (t == 0f) zeroLinePaint else gridLinePaint
+            canvas.drawLine(padL, y, padL + chartW, y, lp)
+            val lbl = when {
+                t > 0f  -> "+%.1f".format(t)
+                t == 0f -> " 0.0"
+                else    -> "%.1f".format(t)
             }
+            canvas.drawText(lbl, padL - 4f * scale, y + axisLabelPaint.textSize * 0.38f, axisLabelPaint)
+        }
+
+        // 3. Leading line
+        if (leading.size >= 2) {
+            val p = Path()
+            p.moveTo(xOfL(0), yOf(leading[0].value))
+            for (i in 1 until ln) p.lineTo(xOfL(i), yOf(leading[i].value))
             canvas.drawPath(p, leadingLinePaint)
         }
 
-        // Regular line
+        // 4. Regular line
         if (regular.size >= 2) {
-            val p = Path().apply {
-                moveTo(xOfR(0), yOf(regular[0].value))
-                for (i in 1 until rn) lineTo(xOfR(i), yOf(regular[i].value))
-            }
+            val p = Path()
+            p.moveTo(xOfR(0), yOf(regular[0].value))
+            for (i in 1 until rn) p.lineTo(xOfR(i), yOf(regular[i].value))
             canvas.drawPath(p, regularLinePaint)
         }
 
-        // X-axis labels
-        val labelPoints = regular.ifEmpty { leading }
+        // 5. X-axis year labels
+        val labelPts = regular.ifEmpty { leading }
         val labelXFn: (Int) -> Float = if (regular.isNotEmpty()) ::xOfR else ::xOfL
-        val labelY = padT + chartH + 30f * scale
-        for (i in labelPoints.indices) {
-            if (i == 0 || i == labelPoints.size - 1 || i % 3 == 0) {
-                canvas.drawText(labelPoints[i].monthLabel, labelXFn(i), labelY, labelPaint)
+        val labelY = padT + chartH + 22f * scale
+        var lastYr = ""
+        for (i in labelPts.indices) {
+            val lbl = labelPts[i].monthLabel
+            val yr  = lbl.substringAfter("'", "")
+            val mon = lbl.substringBefore(" ")
+            if (yr.isNotEmpty() && (mon == "Jan" || i == 0) && yr != lastYr) {
+                canvas.drawText("'$yr", labelXFn(i), labelY, xLabelPaint)
+                lastYr = yr
             }
         }
 
-        // Latest value callouts — always drawn INSIDE padR zone to the right of last point
+        // 6. Right-side callouts
         val calloutX = padL + chartW + 6f * scale
         if (regular.isNotEmpty()) {
             calloutPaint.color = regularColor
-            val calloutY = yOf(regular.last().value).coerceIn(padT + 14f*scale, padT + chartH)
-            canvas.drawText("%.2f".format(regular.last().value), calloutX, calloutY, calloutPaint)
+            val cy = yOf(regular.last().value).coerceIn(padT + 12f * scale, padT + chartH - 4f * scale)
+            canvas.drawText("%.2f".format(regular.last().value), calloutX, cy, calloutPaint)
         }
         if (leading.isNotEmpty()) {
-            calloutPaint.color = leadingColor
-            val calloutY = yOf(leading.last().value).coerceIn(padT + 30f*scale, padT + chartH + 14f*scale)
-            canvas.drawText("%.2f".format(leading.last().value), calloutX, calloutY, calloutPaint)
+            calloutPaint.color = Color.parseColor("#9E9E9E")
+            val cy = yOf(leading.last().value).coerceIn(padT + 26f * scale, padT + chartH + 10f * scale)
+            canvas.drawText("%.2f".format(leading.last().value), calloutX, cy, calloutPaint)
         }
 
-        // Legend
-        val legY = padT + chartH + 44f * scale
-        var legX = padL
-        val lineLen = 20f * scale
+        // 7. Regime badge (top-right, inside right padding)
+        badgeTextPaint.textSize = 7.5f * scale
+        val tw  = badgeTextPaint.measureText(regRegime)
+        val bw  = tw + 9f * scale
+        val bh  = 16f * scale
+        val bx  = width - bw - 3f * scale
+        val by  = padT - bh - 4f * scale
+        badgePaint.color = regularColor
+        canvas.drawRoundRect(RectF(bx, by, bx + bw, by + bh), 4f * scale, 4f * scale, badgePaint)
+        canvas.drawText(regRegime, bx + bw / 2f, by + bh * 0.70f, badgeTextPaint)
 
-        val solidP = Paint(regularLinePaint).apply { pathEffect = null }
-        canvas.drawLine(legX, legY, legX + lineLen, legY, solidP)
-        legX += lineLen + 6f * scale
-        legendPaint.color = regularColor
-        canvas.drawText(" Coincident (regular)", legX, legY + 4f * scale, legendPaint)
-        legX += legendPaint.measureText(" Coincident (regular)") + 20f * scale
+        // 8. Legend
+        val legY  = padT + chartH + 36f * scale
+        var legX  = padL
+        val lineLen = 18f * scale
 
-        canvas.drawLine(legX, legY, legX + lineLen, legY, leadingLinePaint)
-        legX += lineLen + 6f * scale
-        legendPaint.color = leadingColor
-        canvas.drawText(" Leading (forward)", legX, legY + 4f * scale, legendPaint)
+        val solidPaint = Paint(regularLinePaint).apply { pathEffect = null }
+        canvas.drawLine(legX, legY, legX + lineLen, legY, solidPaint)
+        legX += lineLen + 5f * scale
+        legendTextPaint.color = colorFromRegime(regRegime)
+        canvas.drawText("Coincident", legX, legY + 4f * scale, legendTextPaint)
+        legX += legendTextPaint.measureText("Coincident") + 20f * scale
+
+        if (leading.isNotEmpty()) {
+            canvas.drawLine(legX, legY, legX + lineLen, legY, leadingLinePaint)
+            legX += lineLen + 5f * scale
+            legendTextPaint.color = Color.parseColor("#9E9E9E")
+            canvas.drawText("Leading", legX, legY + 4f * scale, legendTextPaint)
+        }
     }
 
-    // ─── Persistence ──────────────────────────────────────────────────────────
+    // ── Persistence ───────────────────────────────────────────────────────────
 
     private fun saveToDownloads(context: Context, bitmap: Bitmap, fileName: String): String? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -271,22 +320,15 @@ object ChartExporter {
         }
     }
 
-    // ─── Color helpers ────────────────────────────────────────────────────────
+    // ── Color helpers ─────────────────────────────────────────────────────────
 
     fun colorFromRegime(r: String): Int = when (r) {
-        "STRONG", "COOLING", "LOW RISK"  -> Color.parseColor("#66BB6A")
-        "MODERATE", "ANCHORED", "STABLE" -> Color.parseColor("#00BFA5")
-        "SOFTENING", "RISING", "CAUTION" -> Color.parseColor("#FFC107")
-        "WEAK", "ELEVATED", "WARNING"    -> Color.parseColor("#FF7043")
-        "CRITICAL"                        -> Color.parseColor("#EF5350")
-        "DEFLATIONARY"                    -> Color.parseColor("#5C6BC0")
-        else                              -> Color.parseColor("#00BFA5")
-    }
-
-    private fun dimColor(color: Int): Int {
-        val r = (Color.red(color)   * 0.7f + 40).toInt().coerceIn(0, 255)
-        val g = (Color.green(color) * 0.7f + 40).toInt().coerceIn(0, 255)
-        val b = (Color.blue(color)  * 0.7f + 40).toInt().coerceIn(0, 255)
-        return Color.rgb(r, g, b)
+        "STRONG", "COOLING", "LOW RISK"  -> Color.parseColor("#43A047")
+        "MODERATE", "ANCHORED", "STABLE" -> Color.parseColor("#00897B")
+        "SOFTENING", "RISING", "CAUTION" -> Color.parseColor("#F9A825")
+        "WEAK", "ELEVATED", "WARNING"    -> Color.parseColor("#E64A19")
+        "CRITICAL"                        -> Color.parseColor("#C62828")
+        "DEFLATIONARY"                    -> Color.parseColor("#4527A0")
+        else                              -> Color.parseColor("#00897B")
     }
 }
