@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipeRefresh"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="INFLATION"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="11sp"
+                android:letterSpacing="0.12"
+                android:textStyle="bold" />
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btnInfo"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@android:drawable/ic_menu_info_details"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="@color/colorTextSecondary"
+                android:contentDescription="Info" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRefresh"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="↻"
+                android:textColor="@color/colorPrimary"
+                android:textSize="18sp"
+                android:minWidth="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp" />
+
+        </LinearLayout>
+
+        <!-- Score line -->
+        <TextView
+            android:id="@+id/tvScore"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Loading…"
+            android:textColor="@color/colorPrimary"
+            android:textSize="13sp"
+            android:layout_marginBottom="6dp" />
+
+        <!-- Overlay chart — takes all remaining space -->
+        <com.sun.feddashboard.ui.OverlayChartView
+            android:id="@+id/chart"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginBottom="6dp" />
+
+        <!-- Updated timestamp -->
+        <TextView
+            android:id="@+id/tvUpdated"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/colorTextSecondary"
+            android:textSize="10sp"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Download HD button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDownloadHD"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="⬇  Download HD Chart"
+            android:textSize="13sp"
+            app:backgroundTint="@color/colorSurface"
+            app:strokeColor="@color/colorPrimary"
+            app:strokeWidth="1dp"
+            android:textColor="@color/colorPrimary" />
+
+    </LinearLayout>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand / accent -->
+    <color name="colorPrimary">#00897B</color>
+    <color name="colorPrimaryVariant">#00695C</color>
+    <color name="colorSecondary">#5C6BC0</color>
+
+    <!-- Backgrounds -->
+    <color name="colorBackground">#F5F5F7</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorNavBackground">#FFFFFF</color>
+
+    <!-- Text -->
+    <color name="colorText">#1C1C1E</color>
+    <color name="colorTextSecondary">#6E6E73</color>
+
+    <!-- Regime / signal colors (unchanged — work on both light and dark) -->
+    <color name="colorSuccess">#2E7D32</color>
+    <color name="colorHold">#00897B</color>
+    <color name="colorWarning">#F57C00</color>
+    <color name="colorError">#C62828</color>
+    <color name="colorOrange">#E64A19</color>
+    <color name="colorIndigo">#3949AB</color>
+
+    <!-- UI chrome -->
+    <color name="colorDivider">#E5E5EA</color>
+
+    <!-- Nav item states -->
+    <color name="nav_active">#00897B</color>
+    <color name="nav_inactive">#6E6E73</color>
+</resources>

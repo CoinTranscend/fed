@@ -1,0 +1,35 @@
+# ── API keys / secrets ────────────────────────────────────────────────────────
+fed_key.txt
+*.key
+*.secret
+
+# ── Android build artifacts ───────────────────────────────────────────────────
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/.idea/
+android/**/*.iml
+android/**/*.DS_Store
+
+# ── Gradle wrapper binary (re-downloaded on first build) ─────────────────────
+android/gradle/wrapper/gradle-wrapper.jar
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ── Generated chart outputs ───────────────────────────────────────────────────
+charts/
+
+# ── Cover images (large; referenced in README) ────────────────────────────────
+android/fed_cover.png
+
+# ── macOS / Linux ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp

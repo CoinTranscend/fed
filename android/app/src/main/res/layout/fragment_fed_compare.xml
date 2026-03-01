@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipeRefresh"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <!-- Header row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Fed Dashboard"
+                    android:textColor="@color/colorText"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <ProgressBar
+                    android:id="@+id/progressBar"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="8dp"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRefresh"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="↻ Refresh"
+                    android:textColor="@color/colorPrimary"
+                    app:strokeColor="@color/colorPrimary"
+                    android:textSize="12sp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp" />
+
+            </LinearLayout>
+
+            <!-- ── INFLATION SECTION ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="2dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="INFLATION"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.08" />
+
+                <ImageButton
+                    android:id="@+id/btnInflationInfo"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="@color/colorTextSecondary"
+                    android:contentDescription="Inflation info" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvInflationScore"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Loading…"
+                android:textColor="@color/colorPrimary"
+                android:textSize="13sp"
+                android:layout_marginBottom="4dp" />
+
+            <com.sun.feddashboard.ui.OverlayChartView
+                android:id="@+id/inflationChart"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/tvInflationUpdated"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="10sp"
+                android:layout_marginBottom="12dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/colorDivider"
+                android:layout_marginBottom="12dp" />
+
+            <!-- ── LABOR SECTION ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="2dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="LABOR MARKET"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.08" />
+
+                <ImageButton
+                    android:id="@+id/btnLaborInfo"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="@color/colorTextSecondary"
+                    android:contentDescription="Labor info" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvLaborScore"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Loading…"
+                android:textColor="@color/colorPrimary"
+                android:textSize="13sp"
+                android:layout_marginBottom="4dp" />
+
+            <com.sun.feddashboard.ui.OverlayChartView
+                android:id="@+id/laborChart"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/tvLaborUpdated"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="10sp"
+                android:layout_marginBottom="16dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/colorDivider"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Download HD Chart button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDownloadHD"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⬇ Download HD Chart (2000×1400)"
+                android:textSize="14sp"
+                app:backgroundTint="@color/colorPrimary"
+                android:layout_marginBottom="24dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

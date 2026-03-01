@@ -1,0 +1,137 @@
+package com.sun.feddashboard
+
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.sun.feddashboard.domain.FedEngine
+import com.sun.feddashboard.domain.InflationLeadingEngine
+import com.sun.feddashboard.domain.LaborLeadingEngine
+import com.sun.feddashboard.domain.RecessionEngine
+import com.sun.feddashboard.model.LeadingResult
+import com.sun.feddashboard.model.RegularResult
+import com.sun.feddashboard.network.GeminiClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class MainViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val prefs = app.getSharedPreferences("fed_prefs", Context.MODE_PRIVATE)
+
+    // ── Keys ──────────────────────────────────────────────────────────────────
+
+    private val _fredKey   = MutableStateFlow(prefs.getString(KEY_FRED,   "") ?: "")
+    private val _geminiKey = MutableStateFlow(prefs.getString(KEY_GEMINI, "") ?: "")
+    val fredKey   = _fredKey.asStateFlow()
+    val geminiKey = _geminiKey.asStateFlow()
+
+    fun saveFredKey(key: String) {
+        prefs.edit().putString(KEY_FRED, key.trim()).apply()
+        _fredKey.value = key.trim()
+    }
+
+    fun saveGeminiKey(key: String) {
+        prefs.edit().putString(KEY_GEMINI, key.trim()).apply()
+        _geminiKey.value = key.trim()
+    }
+
+    fun loadFredKey()   = prefs.getString(KEY_FRED,   "") ?: ""
+    fun loadGeminiKey() = prefs.getString(KEY_GEMINI, "") ?: ""
+
+    // ── Loading ───────────────────────────────────────────────────────────────
+
+    private val _loading = MutableStateFlow(false)
+    val loading = _loading.asStateFlow()
+
+    private val _geminiLoading = MutableStateFlow(false)
+    val geminiLoading = _geminiLoading.asStateFlow()
+
+    // ── Index results ─────────────────────────────────────────────────────────
+
+    private val _isiResult    = MutableStateFlow<RegularResult?>(null)
+    private val _lsiResult    = MutableStateFlow<RegularResult?>(null)
+    private val _liimsiResult = MutableStateFlow<LeadingResult?>(null)
+    private val _llmsiResult  = MutableStateFlow<LeadingResult?>(null)
+    private val _rriResult    = MutableStateFlow<LeadingResult?>(null)
+
+    val isiResult    = _isiResult.asStateFlow()
+    val lsiResult    = _lsiResult.asStateFlow()
+    val liimsiResult = _liimsiResult.asStateFlow()
+    val llmsiResult  = _llmsiResult.asStateFlow()
+    val rriResult    = _rriResult.asStateFlow()
+
+    // ── Gemini narrative ──────────────────────────────────────────────────────
+
+    private val _recessionNarrative = MutableStateFlow<String?>(null)
+    val recessionNarrative = _recessionNarrative.asStateFlow()
+
+    // ── Messages ──────────────────────────────────────────────────────────────
+
+    private val _message = MutableSharedFlow<String>()
+    val message = _message.asSharedFlow()
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+
+    fun refresh() {
+        val key = _fredKey.value
+        if (key.isBlank()) {
+            viewModelScope.launch { _message.emit("Enter your FRED API key in Settings first.") }
+            return
+        }
+        if (_loading.value) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _loading.value = true
+            try {
+                val fed = FedEngine.compute(key)
+                _isiResult.value    = fed.isi
+                _lsiResult.value    = fed.lsi
+                _liimsiResult.value = InflationLeadingEngine.compute(key)
+                _llmsiResult.value  = LaborLeadingEngine.compute(key)
+                _rriResult.value    = RecessionEngine.compute(key)
+
+                if (fed.isi == null && fed.lsi == null) {
+                    _message.emit("No data returned — check your FRED API key.")
+                }
+            } catch (e: Exception) {
+                _message.emit("Network error: ${e.message}")
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun fetchRecessionNarrative() {
+        val gemini = _geminiKey.value
+        if (gemini.isBlank()) {
+            viewModelScope.launch { _message.emit("Add a Gemini API key in Settings for AI analysis.") }
+            return
+        }
+        val rri = _rriResult.value ?: run {
+            viewModelScope.launch { _message.emit("Fetch recession data first.") }
+            return
+        }
+        if (_geminiLoading.value) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _geminiLoading.value = true
+            val text = GeminiClient.fetchRecessionNarrative(
+                rriScore   = rri.current,
+                rriRegime  = rri.regime,
+                components = rri.components,
+                apiKey     = gemini,
+            )
+            _recessionNarrative.value = text ?: "Could not fetch AI analysis — check Gemini key."
+            _geminiLoading.value = false
+        }
+    }
+
+    companion object {
+        private const val KEY_FRED   = "fred_api_key"
+        private const val KEY_GEMINI = "gemini_api_key"
+    }
+}

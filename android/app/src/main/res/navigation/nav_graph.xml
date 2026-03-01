@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/inflationFragment">
+
+    <fragment
+        android:id="@+id/inflationFragment"
+        android:name="com.sun.feddashboard.ui.InflationFragment"
+        android:label="Inflation" />
+
+    <fragment
+        android:id="@+id/laborFragment"
+        android:name="com.sun.feddashboard.ui.LaborFragment"
+        android:label="Labor" />
+
+    <fragment
+        android:id="@+id/recessionFragment"
+        android:name="com.sun.feddashboard.ui.RecessionFragment"
+        android:label="Recession" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.sun.feddashboard.ui.SettingsFragment"
+        android:label="Settings" />
+
+</navigation>

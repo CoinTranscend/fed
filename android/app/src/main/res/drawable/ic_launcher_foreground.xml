@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Simple line chart icon representing Fed data -->
+    <path
+        android:pathData="M20,72 L40,50 L60,58 L80,35 L95,42"
+        android:strokeColor="#00BFA5"
+        android:strokeWidth="4"
+        android:fillColor="@android:color/transparent"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Zero baseline -->
+    <path
+        android:pathData="M15,75 L95,75"
+        android:strokeColor="#33E8F0F7"
+        android:strokeWidth="1.5"
+        android:fillColor="@android:color/transparent" />
+
+</vector>
