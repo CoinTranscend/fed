@@ -1,10 +1,21 @@
 package com.sun.feddashboard.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -13,6 +24,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
+import com.sun.feddashboard.R
 import com.sun.feddashboard.databinding.FragmentRecessionBinding
 import com.sun.feddashboard.domain.RecessionEngine
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +37,12 @@ class RecessionFragment : Fragment() {
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
 
+    private var mediaPlayer: MediaPlayer? = null
+
+    private val requestNotifPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* notification posted from ViewModel when granted */ }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRecessionBinding.inflate(inflater, container, false)
         return binding.root
@@ -33,12 +51,22 @@ class RecessionFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Request notification permission (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestNotifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
         binding.swipeRefresh.setOnRefreshListener { vm.refresh() }
         binding.btnRefresh.setOnClickListener { vm.refresh() }
         binding.btnInfo.setOnClickListener { showInfo() }
         binding.btnDownloadHD.setOnClickListener { exportHD() }
-        binding.btnAiAnalysis.setOnClickListener { vm.fetchRecessionNarrative() }
         binding.btnDownload30Y.setOnClickListener { export30YChart() }
+        binding.btnAiAnalysis.setOnClickListener { vm.fetchRecessionNarrative() }
+        binding.clockContainer.setOnClickListener { showAnalysisPopup() }
+
+        setupClockVideo()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -66,13 +94,18 @@ class RecessionFragment : Fragment() {
                             binding.tvRegimeDesc.text = ""
                             binding.tvUpdated.text = ""
                         }
+                        updateCountdown()
                     }
                 }
                 launch {
                     vm.geminiLoading.collect { loading ->
                         binding.btnAiAnalysis.isEnabled = !loading
                         binding.progressGemini.visibility = if (loading) View.VISIBLE else View.GONE
-                        if (loading) binding.tvNarrative.text = "Fetching AI analysis…"
+                        binding.btnAiAnalysis.text = if (loading) "Analysing…" else "✦ AI Analysis"
+                        if (loading) {
+                            binding.tvNarrative.text = "Please wait — Analysis is running…"
+                            binding.cardNarrative.visibility = View.VISIBLE
+                        }
                     }
                 }
                 launch {
@@ -80,6 +113,7 @@ class RecessionFragment : Fragment() {
                         if (text != null) {
                             binding.tvNarrative.text = text
                             binding.cardNarrative.visibility = View.VISIBLE
+                            updateCountdown()
                         }
                     }
                 }
@@ -95,6 +129,92 @@ class RecessionFragment : Fragment() {
         if (vm.rriResult.value == null && !vm.loading.value) vm.refresh()
     }
 
+    // ── Clock video ───────────────────────────────────────────────────────────
+
+    private fun setupClockVideo() {
+        binding.clockVideo.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                startClockVideo(st)
+            }
+            override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+            override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                mediaPlayer?.release()
+                mediaPlayer = null
+                return true
+            }
+            override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+        }
+    }
+
+    private fun startClockVideo(st: SurfaceTexture) {
+        try {
+            val mp = MediaPlayer.create(requireContext(), R.raw.clock) ?: run {
+                binding.clockContainer.visibility = View.GONE
+                return
+            }
+            mp.setSurface(Surface(st))
+            mp.isLooping = true
+            mp.start()
+            mediaPlayer = mp
+        } catch (e: Exception) {
+            binding.clockContainer.visibility = View.GONE
+        }
+    }
+
+    // ── Countdown estimate ────────────────────────────────────────────────────
+
+    private fun updateCountdown() {
+        val narrative = vm.recessionNarrative.value
+        val regime    = vm.rriResult.value?.regime
+        val parsed    = if (narrative != null) parseTimingFromText(narrative) else null
+        val label     = parsed ?: regimeCountdown(regime)
+        binding.tvCountdown.text = label
+        binding.tvCountdown.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun parseTimingFromText(text: String): String? {
+        val m = Regex("""(\d+)[–\-](\d+)\s*months?""", RegexOption.IGNORE_CASE).find(text) ?: return null
+        return "${m.groupValues[1]}–${m.groupValues[2]} months"
+    }
+
+    private fun regimeCountdown(regime: String?) = when (regime) {
+        "CRITICAL" -> "~6–12 months"
+        "WARNING"  -> "~12–18 months"
+        "CAUTION"  -> "~18–24 months"
+        "STABLE"   -> "No imminent signal"
+        "LOW RISK" -> "No imminent signal"
+        else       -> ""
+    }
+
+    // ── Analysis popup ────────────────────────────────────────────────────────
+
+    private fun showAnalysisPopup() {
+        val narrative = vm.recessionNarrative.value
+        if (narrative == null) {
+            if (vm.geminiLoading.value) {
+                Snackbar.make(binding.root, "Analysis is running — please wait…", Snackbar.LENGTH_SHORT).show()
+            } else {
+                Snackbar.make(binding.root, "Tap '✦ AI Analysis' to generate analysis first.", Snackbar.LENGTH_SHORT).show()
+            }
+            return
+        }
+        val scrollView = ScrollView(requireContext())
+        val tv = TextView(requireContext()).apply {
+            text = narrative
+            textSize = 13f
+            setTextColor(Color.parseColor("#212121"))
+            setPadding(64, 32, 64, 32)
+        }
+        scrollView.addView(tv)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("AI Analysis  ·  ${vm.rriResult.value?.regime ?: "RRI"}")
+            .setView(scrollView)
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
+    // ── Chart exports ─────────────────────────────────────────────────────────
+
     private fun export30YChart() {
         val fredKey = vm.loadFredKey()
         if (fredKey.isBlank()) {
@@ -102,7 +222,7 @@ class RecessionFragment : Fragment() {
             return
         }
         binding.btnDownload30Y.isEnabled = false
-        val ctx = requireContext().applicationContext
+        val ctx    = requireContext().applicationContext
         val regime = vm.rriResult.value?.regime ?: "STABLE"
         viewLifecycleOwner.lifecycleScope.launch {
             Snackbar.make(binding.root, "Fetching 30-year data… this takes ~30s", Snackbar.LENGTH_LONG).show()
@@ -153,11 +273,13 @@ class RecessionFragment : Fragment() {
         }
     }
 
+    // ── Info dialog ───────────────────────────────────────────────────────────
+
     private fun showInfo() {
         val rri = vm.rriResult.value
         val msg = buildString {
             appendLine("RECESSION RISK INDEX (RRI)")
-            appendLine("Composite of 6 FRED leading indicators designed to")
+            appendLine("Composite of 8 FRED leading indicators designed to")
             appendLine("predict recessions 6–18 months ahead.")
             appendLine()
             appendLine("REGIME GUIDE")
@@ -186,7 +308,7 @@ class RecessionFragment : Fragment() {
                 rri?.components?.forEach { c ->
                     appendLine("%-22s  %+.2f  %+.3f".format(c.label.take(22), c.zScore, c.contribution))
                 }
-                val tot = rri?.components?.sumOf { it.weight } ?: 0.0
+                val tot  = rri?.components?.sumOf { it.weight } ?: 0.0
                 val comp = if (tot > 0) rri?.components?.sumOf { it.contribution }?.div(tot) ?: 0.0 else 0.0
                 appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                 append("Composite = %+.2f".format(comp))
@@ -198,6 +320,8 @@ class RecessionFragment : Fragment() {
             .setPositiveButton("OK", null)
             .show()
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun regimeDesc(regime: String) = when (regime) {
         "LOW RISK" -> "Expansion — low recession risk"
@@ -217,5 +341,10 @@ class RecessionFragment : Fragment() {
         else       -> Color.parseColor("#00BFA5")
     }
 
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        mediaPlayer?.release()
+        mediaPlayer = null
+        _binding = null
+    }
 }

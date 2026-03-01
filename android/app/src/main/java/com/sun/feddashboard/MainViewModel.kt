@@ -1,7 +1,14 @@
 package com.sun.feddashboard
 
+import android.Manifest
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sun.feddashboard.domain.FedEngine
@@ -129,11 +136,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             )
             _recessionNarrative.value = text ?: "Could not fetch AI analysis — check Gemini key."
             _geminiLoading.value = false
+            if (text != null) postAnalysisNotification()
         }
+    }
+
+    private fun postAnalysisNotification() {
+        val ctx = getApplication<Application>()
+        val nm  = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "AI Analysis", NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) return
+        try {
+            nm.notify(NOTIF_ID,
+                NotificationCompat.Builder(ctx, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setContentTitle("Fed Dashboard")
+                    .setContentText("AI recession analysis is ready — tap clock to view")
+                    .setAutoCancel(true)
+                    .build()
+            )
+        } catch (_: SecurityException) { /* permission denied */ }
     }
 
     companion object {
         private const val KEY_FRED   = "fred_api_key"
         private const val KEY_GEMINI = "gemini_api_key"
+        private const val CHANNEL_ID = "rri_analysis"
+        private const val NOTIF_ID   = 1
     }
 }
