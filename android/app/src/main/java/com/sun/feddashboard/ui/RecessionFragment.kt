@@ -148,16 +148,27 @@ class RecessionFragment : Fragment() {
 
     private fun startClockVideo(st: SurfaceTexture) {
         try {
-            val mp = MediaPlayer.create(requireContext(), R.raw.clock) ?: run {
-                binding.clockContainer.visibility = View.GONE
-                return
+            val afd = requireContext().resources.openRawResourceFd(R.raw.clock)
+            val mp  = MediaPlayer().apply {
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
+                setSurface(Surface(st))
+                setVolume(0f, 0f)           // muted
+                isLooping = true
+                setOnPreparedListener { player ->
+                    if (mediaPlayer != null) player.start()
+                }
+                setOnErrorListener { _, _, _ ->
+                    _binding?.clockContainer?.post {
+                        _binding?.clockContainer?.visibility = View.GONE
+                    }
+                    true
+                }
+                prepareAsync()              // non-blocking — avoids ANR on large file
             }
-            mp.setSurface(Surface(st))
-            mp.isLooping = true
-            mp.start()
             mediaPlayer = mp
         } catch (e: Exception) {
-            binding.clockContainer.visibility = View.GONE
+            _binding?.clockContainer?.visibility = View.GONE
         }
     }
 

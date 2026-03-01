@@ -126,17 +126,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
         viewModelScope.launch(Dispatchers.IO) {
             _geminiLoading.value = true
-            val text = GeminiClient.fetchRecessionNarrative(
-                rriScore      = rri.current,
-                rriRegime     = rri.regime,
-                lastDataMonth = rri.lastDataMonth,
-                components    = rri.components,
-                trajectory    = rri.points,   // 48-month composite history
-                apiKey        = gemini,
-            )
-            _recessionNarrative.value = text ?: "Could not fetch AI analysis — check Gemini key."
-            _geminiLoading.value = false
-            if (text != null) postAnalysisNotification()
+            try {
+                val text = GeminiClient.fetchRecessionNarrative(
+                    rriScore      = rri.current,
+                    rriRegime     = rri.regime,
+                    lastDataMonth = rri.lastDataMonth,
+                    components    = rri.components,
+                    trajectory    = rri.points,
+                    apiKey        = gemini,
+                )
+                _recessionNarrative.value = text ?: "Could not fetch AI analysis — check Gemini key."
+                if (text != null) postAnalysisNotification()
+            } catch (t: Throwable) {
+                _recessionNarrative.value = "Analysis error: ${t.javaClass.simpleName} — ${t.message?.take(80)}"
+            } finally {
+                _geminiLoading.value = false
+            }
         }
     }
 

@@ -64,7 +64,7 @@ object GeminiClient {
                     ?.trim()
                     ?.takeIf { it.isNotBlank() }
             }
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             null
         }
     }
