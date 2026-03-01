@@ -80,10 +80,6 @@ class InflationFragment : Fragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (vm.isiResult.value == null && !vm.loading.value) vm.refresh()
-    }
 
     private fun buildScore(rL: String, rR: String, rS: Float, lL: String, lR: String?, lS: Float?): String {
         val reg = "$rL: $rR ${"%.2f".format(rS)}"

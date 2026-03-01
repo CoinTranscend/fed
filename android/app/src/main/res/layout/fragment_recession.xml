@@ -107,10 +107,13 @@
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground">
 
-            <TextureView
-                android:id="@+id/clockVideo"
+            <ImageView
+                android:id="@+id/clockImage"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:src="@drawable/clock"
+                android:scaleType="centerCrop"
+                android:contentDescription="Clock" />
 
             <TextView
                 android:id="@+id/tvCountdown"

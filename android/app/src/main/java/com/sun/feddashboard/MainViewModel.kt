@@ -126,8 +126,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
         viewModelScope.launch(Dispatchers.IO) {
             _geminiLoading.value = true
+            var analysisText: String? = null
             try {
-                val text = GeminiClient.fetchRecessionNarrative(
+                analysisText = GeminiClient.fetchRecessionNarrative(
                     rriScore      = rri.current,
                     rriRegime     = rri.regime,
                     lastDataMonth = rri.lastDataMonth,
@@ -135,13 +136,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     trajectory    = rri.points,
                     apiKey        = gemini,
                 )
-                _recessionNarrative.value = text ?: "Could not fetch AI analysis — check Gemini key."
-                if (text != null) postAnalysisNotification()
-            } catch (t: Throwable) {
-                _recessionNarrative.value = "Analysis error: ${t.javaClass.simpleName} — ${t.message?.take(80)}"
+            } catch (_: Throwable) {
+                /* GeminiClient already returns null on error; this is a safety net */
             } finally {
+                _recessionNarrative.value = analysisText
+                    ?: "Could not fetch AI analysis — check Gemini key and internet connection."
                 _geminiLoading.value = false
             }
+            // Notification is outside try/catch so it can't corrupt the result display
+            runCatching { if (analysisText != null) postAnalysisNotification() }
         }
     }
 

@@ -3,13 +3,9 @@ package com.sun.feddashboard.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.SurfaceTexture
-import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.Surface
-import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
@@ -24,7 +20,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
-import com.sun.feddashboard.R
 import com.sun.feddashboard.databinding.FragmentRecessionBinding
 import com.sun.feddashboard.domain.RecessionEngine
 import kotlinx.coroutines.Dispatchers
@@ -36,8 +31,6 @@ class RecessionFragment : Fragment() {
     private var _binding: FragmentRecessionBinding? = null
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
-
-    private var mediaPlayer: MediaPlayer? = null
 
     private val requestNotifPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -65,8 +58,6 @@ class RecessionFragment : Fragment() {
         binding.btnDownload30Y.setOnClickListener { export30YChart() }
         binding.btnAiAnalysis.setOnClickListener { vm.fetchRecessionNarrative() }
         binding.clockContainer.setOnClickListener { showAnalysisPopup() }
-
-        setupClockVideo()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -101,9 +92,9 @@ class RecessionFragment : Fragment() {
                     vm.geminiLoading.collect { loading ->
                         binding.btnAiAnalysis.isEnabled = !loading
                         binding.progressGemini.visibility = if (loading) View.VISIBLE else View.GONE
-                        binding.btnAiAnalysis.text = if (loading) "Analysing…" else "✦ AI Analysis"
+                        binding.btnAiAnalysis.text = if (loading) "Analysing..." else "AI Analysis"
                         if (loading) {
-                            binding.tvNarrative.text = "Please wait — Analysis is running…"
+                            binding.tvNarrative.text = "Please wait — Analysis is running..."
                             binding.cardNarrative.visibility = View.VISIBLE
                         }
                     }
@@ -121,54 +112,6 @@ class RecessionFragment : Fragment() {
                     vm.message.collect { Snackbar.make(binding.root, it, Snackbar.LENGTH_LONG).show() }
                 }
             }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (vm.rriResult.value == null && !vm.loading.value) vm.refresh()
-    }
-
-    // ── Clock video ───────────────────────────────────────────────────────────
-
-    private fun setupClockVideo() {
-        binding.clockVideo.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                startClockVideo(st)
-            }
-            override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
-            override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
-                mediaPlayer?.release()
-                mediaPlayer = null
-                return true
-            }
-            override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
-        }
-    }
-
-    private fun startClockVideo(st: SurfaceTexture) {
-        try {
-            val afd = requireContext().resources.openRawResourceFd(R.raw.clock)
-            val mp  = MediaPlayer().apply {
-                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                afd.close()
-                setSurface(Surface(st))
-                setVolume(0f, 0f)           // muted
-                isLooping = true
-                setOnPreparedListener { player ->
-                    if (mediaPlayer != null) player.start()
-                }
-                setOnErrorListener { _, _, _ ->
-                    _binding?.clockContainer?.post {
-                        _binding?.clockContainer?.visibility = View.GONE
-                    }
-                    true
-                }
-                prepareAsync()              // non-blocking — avoids ANR on large file
-            }
-            mediaPlayer = mp
-        } catch (e: Exception) {
-            _binding?.clockContainer?.visibility = View.GONE
         }
     }
 
@@ -203,9 +146,9 @@ class RecessionFragment : Fragment() {
         val narrative = vm.recessionNarrative.value
         if (narrative == null) {
             if (vm.geminiLoading.value) {
-                Snackbar.make(binding.root, "Analysis is running — please wait…", Snackbar.LENGTH_SHORT).show()
+                Snackbar.make(binding.root, "Analysis is running — please wait...", Snackbar.LENGTH_SHORT).show()
             } else {
-                Snackbar.make(binding.root, "Tap '✦ AI Analysis' to generate analysis first.", Snackbar.LENGTH_SHORT).show()
+                Snackbar.make(binding.root, "Tap 'AI Analysis' to generate analysis first.", Snackbar.LENGTH_SHORT).show()
             }
             return
         }
@@ -236,7 +179,7 @@ class RecessionFragment : Fragment() {
         val ctx    = requireContext().applicationContext
         val regime = vm.rriResult.value?.regime ?: "STABLE"
         viewLifecycleOwner.lifecycleScope.launch {
-            Snackbar.make(binding.root, "Fetching 30-year data… this takes ~30s", Snackbar.LENGTH_LONG).show()
+            Snackbar.make(binding.root, "Fetching 30-year data... this takes ~30s", Snackbar.LENGTH_LONG).show()
             val path = withContext(Dispatchers.IO) {
                 val history = RecessionEngine.computeHistory(fredKey)
                 if (history == null) return@withContext null
@@ -291,27 +234,27 @@ class RecessionFragment : Fragment() {
         val msg = buildString {
             appendLine("RECESSION RISK INDEX (RRI)")
             appendLine("Composite of 8 FRED leading indicators designed to")
-            appendLine("predict recessions 6–18 months ahead.")
+            appendLine("predict recessions 6-18 months ahead.")
             appendLine()
             appendLine("REGIME GUIDE")
             appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            appendLine("LOW RISK  (≥ +0.5)  Expansion — low recession risk")
-            appendLine("STABLE    (≥  0.0)  Moderate growth, monitoring")
-            appendLine("CAUTION   (≥ -0.5)  Warning signs building")
-            appendLine("WARNING   (≥ -1.0)  Elevated risk — history shows ~70% hit")
-            appendLine("CRITICAL  (< -1.0)  Recession likely within 6–12 months")
+            appendLine("LOW RISK  (>= +0.5)  Expansion — low recession risk")
+            appendLine("STABLE    (>=  0.0)  Moderate growth, monitoring")
+            appendLine("CAUTION   (>= -0.5)  Warning signs building")
+            appendLine("WARNING   (>= -1.0)  Elevated risk — history shows ~70% hit")
+            appendLine("CRITICAL  (< -1.0)   Recession likely within 6-12 months")
             appendLine()
             appendLine("COMPONENTS")
             appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            appendLine("10Y−2Y Yield Spread    20%  (↓inv)  Yield curve: top predictor")
-            appendLine("10Y−3M Yield Spread    15%  (↓inv)  Confirms inversion signal")
-            appendLine("HY Credit Spread       15%  (↓inv)  Financial stress signal")
-            appendLine("Building Permits YoY   15%          Housing leads economy 6–12m")
-            appendLine("Initial Claims YoY     10%  (↓inv)  Early labor stress")
-            appendLine("Consumer Sentiment     10%          Confidence leads spending")
-            appendLine("Copper/Gold Ratio      10%          Cross-asset growth proxy")
-            appendLine("Real M2 Growth YoY      5%          Real money supply signal")
-            appendLine("(↓inv) = inverted: higher raw value = higher recession risk")
+            appendLine("10Y-2Y Yield Spread    20%  (inv)  Yield curve: top predictor")
+            appendLine("10Y-3M Yield Spread    15%  (inv)  Confirms inversion signal")
+            appendLine("HY Credit Spread       15%  (inv)  Financial stress signal")
+            appendLine("Building Permits YoY   15%         Housing leads economy 6-12m")
+            appendLine("Initial Claims YoY     10%  (inv)  Early labor stress")
+            appendLine("Consumer Sentiment     10%         Confidence leads spending")
+            appendLine("Copper/Gold Ratio      10%         Cross-asset growth proxy")
+            appendLine("Real M2 Growth YoY      5%         Real money supply signal")
+            appendLine("(inv) = inverted: higher raw value = higher recession risk")
             if (!rri?.components.isNullOrEmpty()) {
                 appendLine()
                 appendLine("CURRENT READINGS  —  ${rri?.lastDataMonth ?: "—"}")
@@ -339,7 +282,7 @@ class RecessionFragment : Fragment() {
         "STABLE"   -> "Moderate growth, no immediate concern"
         "CAUTION"  -> "Warning signs — leading indicators softening"
         "WARNING"  -> "Elevated risk — historical recession probability ~70%"
-        "CRITICAL" -> "Recession likely within 6–12 months"
+        "CRITICAL" -> "Recession likely within 6-12 months"
         else       -> ""
     }
 
@@ -354,8 +297,6 @@ class RecessionFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        mediaPlayer?.release()
-        mediaPlayer = null
         _binding = null
     }
 }
