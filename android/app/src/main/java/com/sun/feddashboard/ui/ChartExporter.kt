@@ -281,6 +281,180 @@ object ChartExporter {
         }
     }
 
+    // ── 30-year history export ────────────────────────────────────────────────
+
+    /**
+     * Exports a full-history RRI chart (~30 years) to Downloads.
+     * Includes NBER recession shading for visual calibration.
+     *
+     * @param history List of (YYYY-MM, composite score) from RecessionEngine.computeHistory()
+     */
+    fun exportLongHistory(
+        context: Context,
+        title: String,
+        history: List<Pair<String, Float>>,
+        regime: String,
+        fileName: String,
+    ): String? {
+        if (history.isEmpty()) return null
+
+        val W = 2400; val H = 900
+        val bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+
+        val scale = W / 480f   // 480dp reference width (wider for 30 years)
+        val color = colorFromRegime(regime)
+
+        // ── Paints ────────────────────────────────────────────────────────────
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color    = Color.parseColor("#1C1C1E")
+            textSize      = 13f * scale
+            isFakeBoldText = true
+        }
+        val axisLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = Color.parseColor("#9E9E9E")
+            textSize   = 7.5f * scale
+            textAlign  = Paint.Align.RIGHT
+            typeface   = Typeface.MONOSPACE
+        }
+        val xLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = Color.parseColor("#9E9E9E")
+            textSize   = 7.5f * scale
+            textAlign  = Paint.Align.CENTER
+        }
+        val recessionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = Color.argb(35, 120, 120, 120)
+            style      = Paint.Style.FILL
+        }
+        val recessionLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = Color.parseColor("#AAAAAA")
+            textSize   = 6.5f * scale
+            textAlign  = Paint.Align.CENTER
+        }
+        val zeroLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color  = Color.parseColor("#BCBCBC")
+            strokeWidth = 1f * scale
+            style       = Paint.Style.STROKE
+        }
+        val gridLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color  = Color.parseColor("#EBEBEB")
+            strokeWidth = 0.7f * scale
+            style       = Paint.Style.STROKE
+        }
+        val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color  = color
+            strokeWidth = 2f * scale
+            style       = Paint.Style.STROKE
+            strokeJoin  = Paint.Join.ROUND
+            strokeCap   = Paint.Cap.ROUND
+        }
+        val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+        // ── Layout ────────────────────────────────────────────────────────────
+        val padL = 50f * scale
+        val padR = 24f * scale
+        val padT = 44f * scale
+        val padB = 32f * scale
+        val chartW = W - padL - padR
+        val chartH = H - padT - padB
+
+        val values = history.map { it.second }
+        val minVal = minOf(values.min(), -1.4f)
+        val maxVal = maxOf(values.max(),  1.4f)
+        val range  = (maxVal - minVal).coerceAtLeast(0.01f)
+
+        val n = history.size.coerceAtLeast(1)
+        fun xOf(i: Int)  = padL + i * chartW / (n - 1).coerceAtLeast(1)
+        fun yOf(v: Float) = padT + chartH * (1f - (v - minVal) / range)
+
+        // Title
+        canvas.drawText(title, padL, 26f * scale, titlePaint)
+
+        // 1. Regime background bands
+        data class Band(val lo: Float, val hi: Float, val argb: Int)
+        val bands = listOf(
+            Band(0.5f,   maxVal,  Color.argb(15, 67,  160, 71)),
+            Band(0.0f,   0.5f,   Color.argb(15, 0,   137, 123)),
+            Band(-0.5f,  0.0f,   Color.argb(15, 249, 168, 37)),
+            Band(-1.0f, -0.5f,   Color.argb(18, 230, 74,  25)),
+            Band(minVal, -1.0f,  Color.argb(20, 198, 40,  40)),
+        )
+        for (b in bands) {
+            val lo = b.lo.coerceAtLeast(minVal); val hi = b.hi.coerceAtMost(maxVal)
+            if (lo >= hi) continue
+            val yTop = yOf(hi).coerceIn(padT, padT + chartH)
+            val yBot = yOf(lo).coerceIn(padT, padT + chartH)
+            if (yBot <= yTop) continue
+            bandFillPaint.color = b.argb
+            canvas.drawRect(padL, yTop, padL + chartW, yBot, bandFillPaint)
+        }
+
+        // 2. NBER recession shading (gray vertical bands)
+        // Source: NBER Business Cycle Dating Committee
+        val nberRecessions = listOf(
+            "1990-07" to "1991-03" to "GFC'90",
+            "2001-03" to "2001-11" to "Dot-com",
+            "2007-12" to "2009-06" to "GFC",
+            "2020-02" to "2020-04" to "COVID",
+        )
+        for ((period, label) in nberRecessions) {
+            val (start, end) = period
+            val startIdx = history.indexOfFirst { it.first >= start }
+            val endIdx   = history.indexOfLast  { it.first <= end }
+            if (startIdx < 0 || endIdx < startIdx) continue
+            val rx = xOf(startIdx)
+            val rw = (xOf(endIdx) - rx).coerceAtLeast(1f)
+            canvas.drawRect(rx, padT, rx + rw, padT + chartH, recessionPaint)
+            canvas.drawText(label, rx + rw / 2f, padT + 8f * scale, recessionLabelPaint)
+        }
+
+        // 3. Gridlines + y-axis labels
+        for (t in listOf(1.5f, 1.0f, 0.5f, 0f, -0.5f, -1.0f, -1.5f)) {
+            if (t < minVal - 0.05f || t > maxVal + 0.05f) continue
+            val y  = yOf(t).coerceIn(padT, padT + chartH)
+            val lp = if (t == 0f) zeroLinePaint else gridLinePaint
+            canvas.drawLine(padL, y, padL + chartW, y, lp)
+            val lbl = when {
+                t > 0f  -> "+%.1f".format(t)
+                t == 0f -> " 0.0"
+                else    -> "%.1f".format(t)
+            }
+            canvas.drawText(lbl, padL - 3f * scale, y + axisLabelPaint.textSize * 0.38f, axisLabelPaint)
+        }
+
+        // 4. RRI line
+        if (n >= 2) {
+            val path = Path()
+            path.moveTo(xOf(0), yOf(history[0].second))
+            for (i in 1 until n) path.lineTo(xOf(i), yOf(history[i].second))
+            canvas.drawPath(path, linePaint)
+        }
+
+        // 5. X-axis: every 5 years + endpoints
+        var lastYr = ""
+        for (i in history.indices) {
+            val yyyyMM = history[i].first
+            val yr = yyyyMM.substringBefore("-")
+            val mo = yyyyMM.substringAfter("-").toIntOrNull() ?: 0
+            val show = (mo == 1 && (yr.toInt() % 5 == 0)) || i == 0 || i == n - 1
+            if (show && yr != lastYr) {
+                canvas.drawText(yr, xOf(i), padT + chartH + 16f * scale, xLabelPaint)
+                lastYr = yr
+            }
+        }
+
+        // 6. Legend note
+        val notePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = Color.parseColor("#9E9E9E")
+            textSize   = 7f * scale
+        }
+        val note = "Shaded = NBER recessions  ·  RRI: 8-series z-score composite  ·  Regime bands: ≥+0.5 LOW RISK → < −1.0 CRITICAL"
+        canvas.drawText(note, padL, padT + chartH + 28f * scale, notePaint)
+
+        return saveToDownloads(context, bitmap, fileName)
+    }
+
     // ── Persistence ───────────────────────────────────────────────────────────
 
     private fun saveToDownloads(context: Context, bitmap: Bitmap, fileName: String): String? {

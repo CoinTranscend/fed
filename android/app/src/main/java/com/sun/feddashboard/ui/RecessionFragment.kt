@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentRecessionBinding
+import com.sun.feddashboard.domain.RecessionEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,6 +38,7 @@ class RecessionFragment : Fragment() {
         binding.btnInfo.setOnClickListener { showInfo() }
         binding.btnDownloadHD.setOnClickListener { exportHD() }
         binding.btnAiAnalysis.setOnClickListener { vm.fetchRecessionNarrative() }
+        binding.btnDownload30Y.setOnClickListener { export30YChart() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -91,6 +93,35 @@ class RecessionFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (vm.rriResult.value == null && !vm.loading.value) vm.refresh()
+    }
+
+    private fun export30YChart() {
+        val fredKey = vm.loadFredKey()
+        if (fredKey.isBlank()) {
+            Snackbar.make(binding.root, "Add your FRED API key in Settings first.", Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        binding.btnDownload30Y.isEnabled = false
+        val ctx = requireContext().applicationContext
+        val regime = vm.rriResult.value?.regime ?: "STABLE"
+        viewLifecycleOwner.lifecycleScope.launch {
+            Snackbar.make(binding.root, "Fetching 30-year data… this takes ~30s", Snackbar.LENGTH_LONG).show()
+            val path = withContext(Dispatchers.IO) {
+                val history = RecessionEngine.computeHistory(fredKey)
+                if (history == null) return@withContext null
+                ChartExporter.exportLongHistory(
+                    ctx,
+                    title    = "Recession Risk Index (RRI)  —  30-Year History with NBER Recessions",
+                    history  = history,
+                    regime   = regime,
+                    fileName = "fed_rri_30year.png",
+                )
+            }
+            Snackbar.make(binding.root,
+                if (path != null) "Saved to $path" else "Export failed — check FRED key.",
+                Snackbar.LENGTH_LONG).show()
+            binding.btnDownload30Y.isEnabled = true
+        }
     }
 
     private fun exportHD() {

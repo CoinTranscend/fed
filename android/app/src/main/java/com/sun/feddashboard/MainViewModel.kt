@@ -120,10 +120,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             _geminiLoading.value = true
             val text = GeminiClient.fetchRecessionNarrative(
-                rriScore   = rri.current,
-                rriRegime  = rri.regime,
-                components = rri.components,
-                apiKey     = gemini,
+                rriScore      = rri.current,
+                rriRegime     = rri.regime,
+                lastDataMonth = rri.lastDataMonth,
+                components    = rri.components,
+                trajectory    = rri.points,   // 48-month composite history
+                apiKey        = gemini,
             )
             _recessionNarrative.value = text ?: "Could not fetch AI analysis — check Gemini key."
             _geminiLoading.value = false

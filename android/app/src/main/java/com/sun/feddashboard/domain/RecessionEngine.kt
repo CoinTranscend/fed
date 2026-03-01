@@ -139,6 +139,75 @@ object RecessionEngine {
         )
     }
 
+    /**
+     * Computes the full RRI composite history for HD chart export.
+     * Fetches [yearsBack] years of data (default 32 → ~30 years of valid output
+     * after the z-score warmup period).
+     *
+     * Returns a list of (YYYY-MM, score) pairs for all months with a valid composite.
+     * Null if the FRED API key is blank or all fetches fail.
+     */
+    fun computeHistory(
+        fredApiKey: String,
+        yearsBack: Int = 32,
+    ): List<Pair<String, Float>>? {
+        if (fredApiKey.isBlank()) return null
+
+        val startDate = LocalDate.now().minusYears(yearsBack.toLong())
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val rawSeries = mutableMapOf<String, List<Pair<String, Double?>>>()
+
+        for (spec in STANDARD_SERIES) {
+            val data = try { FredClient.fetchSeries(spec.id, fredApiKey, startDate) }
+                       catch (_: Exception) { emptyList() }
+            if (data.isNotEmpty()) rawSeries[spec.id] = data
+        }
+
+        try {
+            val copper = FredClient.fetchSeries("PCOPPUSDM",        fredApiKey, startDate)
+            val gold   = FredClient.fetchSeries("GOLDAMGBD228NLBM", fredApiKey, startDate)
+            val ratio  = alignedRatio(copper, gold)
+            if (ratio.isNotEmpty()) rawSeries[COPPER_GOLD.id] = ratio
+        } catch (_: Exception) { }
+
+        try {
+            val m2  = FredClient.fetchSeries("M2SL",     fredApiKey, startDate)
+            val cpi = FredClient.fetchSeries("CPIAUCSL", fredApiKey, startDate)
+            val rm2 = alignedRatio(m2, cpi)
+            if (rm2.isNotEmpty()) rawSeries[REAL_M2.id] = rm2
+        } catch (_: Exception) { }
+
+        if (rawSeries.isEmpty()) return null
+
+        val allMonths = rawSeries.values
+            .flatMap { it.map { p -> p.first } }
+            .toSortedSet().toList()
+
+        val weightedZScores = mutableMapOf<String, Map<String, Double?>>()
+
+        for (spec in ALL_SPECS) {
+            val raw = rawSeries[spec.id] ?: continue
+            val filled    = EngineBase.forwardFill(allMonths, raw.toMap())
+            val processed = if (spec.yoy) EngineBase.applyYoY(allMonths, filled) else filled
+            val zScores   = EngineBase.rollingZScore(allMonths, processed)
+            val sign = if (spec.invert) -1.0 else 1.0
+            weightedZScores[spec.id] = zScores.mapValues { (_, v) -> v?.let { it * sign * spec.weight } }
+        }
+
+        val weightBySeries = ALL_SPECS.associate { it.id to it.weight }
+        val result = mutableListOf<Pair<String, Float>>()
+        for (month in allMonths) {
+            var num = 0.0; var den = 0.0
+            for ((sid, wz) in weightedZScores) {
+                val v = wz[month]
+                if (v != null && !v.isNaN()) { num += v; den += weightBySeries[sid] ?: 0.0 }
+            }
+            if (den > 0.0) result.add(month to (num / den).toFloat())
+        }
+        return result.ifEmpty { null }
+    }
+
     /** Aligns two date-value lists by date and divides numerator / denominator. */
     private fun alignedRatio(
         numerator: List<Pair<String, Double?>>,
