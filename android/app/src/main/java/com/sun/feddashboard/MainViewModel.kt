@@ -13,16 +13,21 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.sun.feddashboard.domain.FedEngine
+import com.sun.feddashboard.domain.HPulseEngine
 import com.sun.feddashboard.domain.InflationLeadingEngine
 import com.sun.feddashboard.domain.LaborLeadingEngine
 import com.sun.feddashboard.domain.PulseEngine
 import com.sun.feddashboard.domain.RecessionEngine
+import com.sun.feddashboard.model.GeminiHPulseStatus
 import com.sun.feddashboard.model.GeminiPulseStatus
+import com.sun.feddashboard.model.HPulseNarrativeState
+import com.sun.feddashboard.model.HPulseResult
 import com.sun.feddashboard.model.LeadingResult
 import com.sun.feddashboard.model.PulseNarrativeState
 import com.sun.feddashboard.model.PulseResult
 import com.sun.feddashboard.model.RegularResult
 import com.sun.feddashboard.network.GeminiClient
+import com.sun.feddashboard.network.GeminiHPulseClient
 import com.sun.feddashboard.network.GeminiPulseClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -172,6 +177,67 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ── HPulse ────────────────────────────────────────────────────────────────
+
+    private val _hPulseResult         = MutableStateFlow<HPulseResult?>(null)
+    private val _hPulseNarrativeState = MutableStateFlow(HPulseNarrativeState())
+    private val _hPulseLoading        = MutableStateFlow(false)
+
+    val hPulseResult         = _hPulseResult.asStateFlow()
+    val hPulseNarrativeState = _hPulseNarrativeState.asStateFlow()
+    val hPulseLoading        = _hPulseLoading.asStateFlow()
+
+    fun refreshHPulse() {
+        val fredKey   = _fredKey.value
+        val geminiKey = _geminiKey.value
+        if (fredKey.isBlank()) {
+            viewModelScope.launch { _message.emit("Enter your FRED API key in Settings first.") }
+            return
+        }
+        if (_hPulseLoading.value) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _hPulseLoading.value = true
+            try {
+                val result = HPulseEngine.compute(fredKey)
+                if (result != null) {
+                    _hPulseResult.value = result
+                    saveHPulseCache(result)
+
+                    // Gemini narrative — always auto-fetched in parallel
+                    launch {
+                        if (geminiKey.isBlank()) {
+                            _hPulseNarrativeState.value = HPulseNarrativeState(
+                                status = GeminiHPulseStatus.NO_KEY)
+                            return@launch
+                        }
+                        _hPulseNarrativeState.value = HPulseNarrativeState(
+                            status = GeminiHPulseStatus.LOADING, loading = true)
+                        val resp = try {
+                            GeminiHPulseClient.fetchNarrative(result, geminiKey)
+                        } catch (_: Throwable) {
+                            GeminiHPulseClient.GeminiHPulseResponse(null)
+                        }
+                        _hPulseNarrativeState.value = when {
+                            resp.text != null     -> HPulseNarrativeState(
+                                text = resp.text, status = GeminiHPulseStatus.OK)
+                            resp.errorCode == 429 -> HPulseNarrativeState(
+                                status = GeminiHPulseStatus.QUOTA)
+                            else                  -> HPulseNarrativeState(
+                                status = GeminiHPulseStatus.ERROR)
+                        }
+                    }
+                } else {
+                    _message.emit("No HPulse data — check your FRED API key.")
+                }
+            } catch (e: Exception) {
+                _message.emit("Network error: ${e.message}")
+            } finally {
+                _hPulseLoading.value = false
+            }
+        }
+    }
+
     // ── Messages ──────────────────────────────────────────────────────────────
 
     private val _message = MutableSharedFlow<String>()
@@ -269,6 +335,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString(CACHE_PULSE, gson.toJson(result)).apply()
     }
 
+    private fun saveHPulseCache(result: HPulseResult) {
+        prefs.edit().putString(CACHE_HPULSE, gson.toJson(result)).apply()
+    }
+
     private fun loadCachedState() {
         runCatching {
             _isiResult.value    = loadJson(CACHE_ISI,    RegularResult::class.java)
@@ -276,7 +346,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _liimsiResult.value = loadJson(CACHE_LIIMSI, LeadingResult::class.java)
             _llmsiResult.value  = loadJson(CACHE_LLMSI,  LeadingResult::class.java)
             _rriResult.value    = loadJson(CACHE_RRI,    LeadingResult::class.java)
-            _pulseResult.value  = loadJson(CACHE_PULSE,  PulseResult::class.java)
+            _pulseResult.value  = loadJson(CACHE_PULSE,   PulseResult::class.java)
+            _hPulseResult.value = loadJson(CACHE_HPULSE,  HPulseResult::class.java)
         }
     }
 
@@ -314,8 +385,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private const val CACHE_LIIMSI= "cache_liimsi"
         private const val CACHE_LLMSI = "cache_llmsi"
         private const val CACHE_RRI    = "cache_rri"
-        private const val CACHE_PULSE  = "cache_pulse"
-        private const val CACHE_TARGET = "cache_countdown_target"
+        private const val CACHE_PULSE   = "cache_pulse"
+        private const val CACHE_HPULSE  = "cache_hpulse"
+        private const val CACHE_TARGET  = "cache_countdown_target"
         private const val CHANNEL_ID   = "rri_analysis"
         private const val NOTIF_ID    = 1
     }
