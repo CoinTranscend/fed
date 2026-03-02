@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import com.sun.feddashboard.domain.FedEngine
 import com.sun.feddashboard.domain.InflationLeadingEngine
 import com.sun.feddashboard.domain.LaborLeadingEngine
@@ -28,6 +29,7 @@ import kotlinx.coroutines.launch
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefs = app.getSharedPreferences("fed_prefs", Context.MODE_PRIVATE)
+    private val gson  = Gson()
 
     // ── Keys ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _message = MutableSharedFlow<String>()
     val message = _message.asSharedFlow()
 
+    // ── Init: restore last cached state ──────────────────────────────────────
+
+    init {
+        loadCachedState()
+    }
+
     // ── Actions ───────────────────────────────────────────────────────────────
 
     fun refresh() {
@@ -103,6 +111,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
                 if (fed.isi == null && fed.lsi == null) {
                     _message.emit("No data returned — check your FRED API key.")
+                } else {
+                    saveCachedState()
                 }
             } catch (e: Exception) {
                 _message.emit("Network error: ${e.message}")
@@ -143,10 +153,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     ?: "Could not fetch AI analysis — check Gemini key and internet connection."
                 _geminiLoading.value = false
             }
-            // Notification is outside try/catch so it can't corrupt the result display
             runCatching { if (analysisText != null) postAnalysisNotification() }
         }
     }
+
+    // ── Cache ─────────────────────────────────────────────────────────────────
+
+    private fun saveCachedState() {
+        prefs.edit()
+            .putString(CACHE_ISI,    gson.toJson(_isiResult.value))
+            .putString(CACHE_LSI,    gson.toJson(_lsiResult.value))
+            .putString(CACHE_LIIMSI, gson.toJson(_liimsiResult.value))
+            .putString(CACHE_LLMSI,  gson.toJson(_llmsiResult.value))
+            .putString(CACHE_RRI,    gson.toJson(_rriResult.value))
+            .apply()
+    }
+
+    private fun loadCachedState() {
+        runCatching {
+            _isiResult.value    = loadJson(CACHE_ISI,    RegularResult::class.java)
+            _lsiResult.value    = loadJson(CACHE_LSI,    RegularResult::class.java)
+            _liimsiResult.value = loadJson(CACHE_LIIMSI, LeadingResult::class.java)
+            _llmsiResult.value  = loadJson(CACHE_LLMSI,  LeadingResult::class.java)
+            _rriResult.value    = loadJson(CACHE_RRI,    LeadingResult::class.java)
+        }
+    }
+
+    private fun <T> loadJson(key: String, type: Class<T>): T? =
+        prefs.getString(key, null)?.let { runCatching { gson.fromJson(it, type) }.getOrNull() }
+
+    // ── Notification ──────────────────────────────────────────────────────────
 
     private fun postAnalysisNotification() {
         val ctx = getApplication<Application>()
@@ -170,9 +206,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
-        private const val KEY_FRED   = "fred_api_key"
-        private const val KEY_GEMINI = "gemini_api_key"
-        private const val CHANNEL_ID = "rri_analysis"
-        private const val NOTIF_ID   = 1
+        private const val KEY_FRED    = "fred_api_key"
+        private const val KEY_GEMINI  = "gemini_api_key"
+        private const val CACHE_ISI   = "cache_isi"
+        private const val CACHE_LSI   = "cache_lsi"
+        private const val CACHE_LIIMSI= "cache_liimsi"
+        private const val CACHE_LLMSI = "cache_llmsi"
+        private const val CACHE_RRI   = "cache_rri"
+        private const val CHANNEL_ID  = "rri_analysis"
+        private const val NOTIF_ID    = 1
     }
 }

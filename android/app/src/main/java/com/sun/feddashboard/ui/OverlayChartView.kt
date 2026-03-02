@@ -149,6 +149,7 @@ class OverlayChartView @JvmOverloads constructor(
         val padL = PAD_L; val padR = PAD_R; val padT = PAD_T; val padB = PAD_B
         val chartW = width  - padL - padR
         val chartH = height - padT - padB
+        if (chartW <= 0f || chartH <= 0f) return   // view too small to draw (e.g. squeezed by layout)
 
         val allValues = regularPoints.map { it.value } + leadingPoints.map { it.value }
         val minVal = minOf(allValues.minOrNull() ?: -0.5f, -1.4f)
@@ -241,6 +242,7 @@ class OverlayChartView @JvmOverloads constructor(
         left: Float, top: Float, w: Float, h: Float,
         minVal: Float, maxVal: Float,
     ) {
+        if (w <= 0f || h <= 0f) return
         val range = (maxVal - minVal).coerceAtLeast(0.01f)
         fun yOf(v: Float) = top + h * (1f - (v - minVal) / range)
 
