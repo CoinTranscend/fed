@@ -78,6 +78,34 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _recessionNarrative = MutableStateFlow<String?>(null)
     val recessionNarrative = _recessionNarrative.asStateFlow()
 
+    // ── Countdown target ──────────────────────────────────────────────────────
+
+    private val _countdownTarget = MutableStateFlow(prefs.getLong(CACHE_TARGET, 0L))
+    val countdownTarget = _countdownTarget.asStateFlow()
+
+    private fun setCountdownMs(months: Float) {
+        if (months <= 0f) return
+        val targetMs = System.currentTimeMillis() + (months * 30.44 * 86_400_000.0).toLong()
+        prefs.edit().putLong(CACHE_TARGET, targetMs).apply()
+        _countdownTarget.value = targetMs
+    }
+
+    fun updateCountdownTarget(regime: String?, narrativeText: String? = null) {
+        val parsedMonths = if (narrativeText != null) {
+            val m = Regex("""(\d+)[–\-](\d+)\s*months?""", RegexOption.IGNORE_CASE).find(narrativeText)
+            if (m != null)
+                ((m.groupValues[1].toFloatOrNull() ?: 0f) + (m.groupValues[2].toFloatOrNull() ?: 0f)) / 2f
+            else null
+        } else null
+        val months = parsedMonths ?: when (regime) {
+            "CRITICAL" -> 9f
+            "WARNING"  -> 15f
+            "CAUTION"  -> 21f
+            else       -> 0f
+        }
+        if (months > 0f) setCountdownMs(months)
+    }
+
     // ── Messages ──────────────────────────────────────────────────────────────
 
     private val _message = MutableSharedFlow<String>()
@@ -113,6 +141,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     _message.emit("No data returned — check your FRED API key.")
                 } else {
                     saveCachedState()
+                    updateCountdownTarget(_rriResult.value?.regime)
                 }
             } catch (e: Exception) {
                 _message.emit("Network error: ${e.message}")
@@ -153,6 +182,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     ?: "Could not fetch AI analysis — check Gemini key and internet connection."
                 _geminiLoading.value = false
             }
+            if (analysisText != null) updateCountdownTarget(_rriResult.value?.regime, analysisText)
             runCatching { if (analysisText != null) postAnalysisNotification() }
         }
     }
@@ -212,8 +242,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private const val CACHE_LSI   = "cache_lsi"
         private const val CACHE_LIIMSI= "cache_liimsi"
         private const val CACHE_LLMSI = "cache_llmsi"
-        private const val CACHE_RRI   = "cache_rri"
-        private const val CHANNEL_ID  = "rri_analysis"
+        private const val CACHE_RRI    = "cache_rri"
+        private const val CACHE_TARGET = "cache_countdown_target"
+        private const val CHANNEL_ID   = "rri_analysis"
         private const val NOTIF_ID    = 1
     }
 }

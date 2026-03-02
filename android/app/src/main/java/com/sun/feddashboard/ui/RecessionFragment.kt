@@ -22,7 +22,10 @@ import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentRecessionBinding
 import com.sun.feddashboard.domain.RecessionEngine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -31,6 +34,8 @@ class RecessionFragment : Fragment() {
     private var _binding: FragmentRecessionBinding? = null
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
+
+    private var countdownJob: Job? = null
 
     private val requestNotifPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -47,7 +52,7 @@ class RecessionFragment : Fragment() {
         // Request notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
+                    != PackageManager.PERMISSION_GRANTED) {
             requestNotifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
@@ -56,7 +61,17 @@ class RecessionFragment : Fragment() {
         binding.btnInfo.setOnClickListener { showInfo() }
         binding.btnDownloadHD.setOnClickListener { exportHD() }
         binding.btnDownload30Y.setOnClickListener { export30YChart() }
-        binding.btnAiAnalysis.setOnClickListener { vm.fetchRecessionNarrative() }
+
+        // AI Analysis button: fetch if no narrative yet, or show popup if already fetched
+        binding.btnAiAnalysis.setOnClickListener {
+            if (vm.recessionNarrative.value != null && !vm.geminiLoading.value) {
+                showAnalysisPopup()
+            } else {
+                vm.fetchRecessionNarrative()
+            }
+        }
+
+        // Clock terminal: tap to view full AI analysis popup
         binding.clockContainer.setOnClickListener { showAnalysisPopup() }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -91,21 +106,17 @@ class RecessionFragment : Fragment() {
                 launch {
                     vm.geminiLoading.collect { loading ->
                         binding.btnAiAnalysis.isEnabled = !loading
-                        binding.progressGemini.visibility = if (loading) View.VISIBLE else View.GONE
-                        binding.btnAiAnalysis.text = if (loading) "Analysing..." else "AI Analysis"
-                        if (loading) {
-                            binding.tvNarrative.text = "Please wait — Analysis is running..."
-                            binding.cardNarrative.visibility = View.VISIBLE
-                        }
+                        binding.btnAiAnalysis.text = if (loading) "Analysing..." else "✦ AI Analysis"
                     }
                 }
                 launch {
                     vm.recessionNarrative.collect { text ->
-                        if (text != null) {
-                            binding.tvNarrative.text = text
-                            binding.cardNarrative.visibility = View.VISIBLE
-                            updateCountdown()
-                        }
+                        if (text != null) updateCountdown()
+                    }
+                }
+                launch {
+                    vm.countdownTarget.collect { targetMs ->
+                        startCountdown(targetMs)
                     }
                 }
                 launch {
@@ -113,17 +124,47 @@ class RecessionFragment : Fragment() {
                 }
             }
         }
+
+        // Start countdown from cached target immediately (in case it was already saved)
+        startCountdown(vm.countdownTarget.value)
     }
 
-    // ── Countdown estimate ────────────────────────────────────────────────────
+    // ── Countdown timer ────────────────────────────────────────────────────────
+
+    private fun startCountdown(targetMs: Long) {
+        countdownJob?.cancel()
+        if (targetMs <= 0L) {
+            _binding?.tvClockTime?.text = "---:--"
+            return
+        }
+        countdownJob = viewLifecycleOwner.lifecycleScope.launch {
+            var colonOn = true
+            while (isActive) {
+                val remaining = targetMs - System.currentTimeMillis()
+                if (remaining <= 0L) {
+                    binding.tvClockTime.text = "000:00"
+                    break
+                }
+                val totalHrs = remaining / 3_600_000L
+                val days = totalHrs / 24L
+                val hrs  = totalHrs % 24L
+                val sep  = if (colonOn) ":" else " "
+                binding.tvClockTime.text = "%03d%s%02d".format(days, sep, hrs)
+                colonOn = !colonOn
+                delay(1000L)
+            }
+        }
+    }
+
+    // ── Countdown label ────────────────────────────────────────────────────────
 
     private fun updateCountdown() {
         val narrative = vm.recessionNarrative.value
         val regime    = vm.rriResult.value?.regime
         val parsed    = if (narrative != null) parseTimingFromText(narrative) else null
-        val label     = parsed ?: regimeCountdown(regime)
-        binding.tvCountdown.text = label
-        binding.tvCountdown.visibility = if (label.isNotEmpty()) View.VISIBLE else View.GONE
+        val estimate  = parsed ?: regimeCountdown(regime)
+        binding.tvCountdown.text = if (estimate.isNotEmpty()) "[ $estimate ]" else ""
+        binding.tvCountdown.visibility = if (estimate.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
     private fun parseTimingFromText(text: String): String? {
@@ -296,6 +337,7 @@ class RecessionFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        countdownJob?.cancel()
         super.onDestroyView()
         _binding = null
     }
