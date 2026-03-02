@@ -28,6 +28,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class RecessionFragment : Fragment() {
 
@@ -135,8 +138,14 @@ class RecessionFragment : Fragment() {
         countdownJob?.cancel()
         if (targetMs <= 0L) {
             _binding?.tvClockTime?.text = "---:--"
+            _binding?.tvClockDate?.visibility = View.GONE
             return
         }
+        // Show target date immediately (static)
+        val dateFmt = SimpleDateFormat("MMM yyyy", Locale.US).format(Date(targetMs)).uppercase()
+        _binding?.tvClockDate?.text = "> ETA: $dateFmt"
+        _binding?.tvClockDate?.visibility = View.VISIBLE
+
         countdownJob = viewLifecycleOwner.lifecycleScope.launch {
             var colonOn = true
             while (isActive) {

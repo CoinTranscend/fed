@@ -20,6 +20,11 @@
         android:label="Recession" />
 
     <fragment
+        android:id="@+id/pulseFragment"
+        android:name="com.sun.feddashboard.ui.PulseFragment"
+        android:label="PULSE" />
+
+    <fragment
         android:id="@+id/settingsFragment"
         android:name="com.sun.feddashboard.ui.SettingsFragment"
         android:label="Settings" />

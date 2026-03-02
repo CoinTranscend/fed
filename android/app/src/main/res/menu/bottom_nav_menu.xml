@@ -17,6 +17,11 @@
         android:title="Recession" />
 
     <item
+        android:id="@+id/pulseFragment"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="PULSE" />
+
+    <item
         android:id="@+id/settingsFragment"
         android:icon="@android:drawable/ic_menu_preferences"
         android:title="Settings" />
