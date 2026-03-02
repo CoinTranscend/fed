@@ -2,17 +2,12 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/inflationFragment">
+    app:startDestination="@id/fedCompareFragment">
 
     <fragment
-        android:id="@+id/inflationFragment"
-        android:name="com.sun.feddashboard.ui.InflationFragment"
-        android:label="Inflation" />
-
-    <fragment
-        android:id="@+id/laborFragment"
-        android:name="com.sun.feddashboard.ui.LaborFragment"
-        android:label="Labor" />
+        android:id="@+id/fedCompareFragment"
+        android:name="com.sun.feddashboard.ui.FedCompareFragment"
+        android:label="Markets" />
 
     <fragment
         android:id="@+id/recessionFragment"
@@ -23,6 +18,11 @@
         android:id="@+id/pulseFragment"
         android:name="com.sun.feddashboard.ui.PulseFragment"
         android:label="PULSE" />
+
+    <fragment
+        android:id="@+id/hPulseFragment"
+        android:name="com.sun.feddashboard.ui.HPulseFragment"
+        android:label="HPulse" />
 
     <fragment
         android:id="@+id/settingsFragment"

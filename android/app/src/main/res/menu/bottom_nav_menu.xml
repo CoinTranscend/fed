@@ -2,14 +2,9 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/inflationFragment"
+        android:id="@+id/fedCompareFragment"
         android:icon="@android:drawable/ic_menu_compass"
-        android:title="Inflation" />
-
-    <item
-        android:id="@+id/laborFragment"
-        android:icon="@android:drawable/ic_menu_agenda"
-        android:title="Labor" />
+        android:title="Markets" />
 
     <item
         android:id="@+id/recessionFragment"
@@ -20,6 +15,11 @@
         android:id="@+id/pulseFragment"
         android:icon="@android:drawable/ic_menu_myplaces"
         android:title="PULSE" />
+
+    <item
+        android:id="@+id/hPulseFragment"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="HPulse" />
 
     <item
         android:id="@+id/settingsFragment"

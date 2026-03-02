@@ -15,9 +15,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:padding="14dp">
 
-            <!-- Header row -->
+            <!-- Global header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -29,39 +29,40 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Fed Dashboard"
-                    android:textColor="@color/colorText"
-                    android:textSize="18sp"
+                    android:text="FED MARKETS"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.12"
                     android:textStyle="bold" />
 
                 <ProgressBar
                     android:id="@+id/progressBar"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:layout_marginEnd="8dp"
                     android:visibility="gone" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRefresh"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="↻ Refresh"
+                    android:layout_height="36dp"
+                    android:text="↻"
                     android:textColor="@color/colorPrimary"
-                    app:strokeColor="@color/colorPrimary"
-                    android:textSize="12sp"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:textSize="18sp"
+                    android:minWidth="0dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp" />
 
             </LinearLayout>
 
-            <!-- ── INFLATION SECTION ── -->
+            <!-- ═══════════ INFLATION SECTION ═══════════ -->
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="4dp"
                 android:layout_marginBottom="2dp">
 
                 <TextView
@@ -71,12 +72,13 @@
                     android:text="INFLATION"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="11sp"
-                    android:letterSpacing="0.08" />
+                    android:letterSpacing="0.12"
+                    android:textStyle="bold" />
 
                 <ImageButton
                     android:id="@+id/btnInflationInfo"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:src="@android:drawable/ic_menu_info_details"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:tint="@color/colorTextSecondary"
@@ -88,25 +90,45 @@
                 android:id="@+id/tvInflationScore"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Loading…"
+                android:text="No data — tap ↻"
                 android:textColor="@color/colorPrimary"
                 android:textSize="13sp"
+                android:textStyle="bold"
                 android:layout_marginBottom="4dp" />
 
             <com.sun.feddashboard.ui.OverlayChartView
                 android:id="@+id/inflationChart"
                 android:layout_width="match_parent"
-                android:layout_height="180dp"
-                android:layout_marginBottom="2dp" />
+                android:layout_height="170dp"
+                android:layout_marginBottom="3dp" />
 
             <TextView
                 android:id="@+id/tvInflationUpdated"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text=""
                 android:textColor="@color/colorTextSecondary"
                 android:textSize="10sp"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="4dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnInflationHD"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:text="⬇ HD"
+                    android:textSize="11sp"
+                    app:backgroundTint="@color/colorSurface"
+                    app:strokeColor="@color/colorPrimary"
+                    app:strokeWidth="1dp"
+                    android:textColor="@color/colorPrimary" />
+
+            </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
@@ -114,7 +136,8 @@
                 android:background="@color/colorDivider"
                 android:layout_marginBottom="12dp" />
 
-            <!-- ── LABOR SECTION ── -->
+            <!-- ═══════════ LABOR SECTION ═══════════ -->
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -129,12 +152,13 @@
                     android:text="LABOR MARKET"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="11sp"
-                    android:letterSpacing="0.08" />
+                    android:letterSpacing="0.12"
+                    android:textStyle="bold" />
 
                 <ImageButton
                     android:id="@+id/btnLaborInfo"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:src="@android:drawable/ic_menu_info_details"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:tint="@color/colorTextSecondary"
@@ -146,41 +170,36 @@
                 android:id="@+id/tvLaborScore"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Loading…"
+                android:text="No data — tap ↻"
                 android:textColor="@color/colorPrimary"
                 android:textSize="13sp"
+                android:textStyle="bold"
                 android:layout_marginBottom="4dp" />
 
             <com.sun.feddashboard.ui.OverlayChartView
                 android:id="@+id/laborChart"
                 android:layout_width="match_parent"
-                android:layout_height="180dp"
-                android:layout_marginBottom="2dp" />
+                android:layout_height="170dp"
+                android:layout_marginBottom="3dp" />
 
             <TextView
                 android:id="@+id/tvLaborUpdated"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text=""
                 android:textColor="@color/colorTextSecondary"
                 android:textSize="10sp"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="4dp" />
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/colorDivider"
-                android:layout_marginBottom="16dp" />
-
-            <!-- Download HD Chart button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDownloadHD"
+                android:id="@+id/btnLaborHD"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="⬇ Download HD Chart (2000×1400)"
-                android:textSize="14sp"
-                app:backgroundTint="@color/colorPrimary"
-                android:layout_marginBottom="24dp" />
+                android:layout_height="38dp"
+                android:text="⬇ HD"
+                android:textSize="11sp"
+                app:backgroundTint="@color/colorSurface"
+                app:strokeColor="@color/colorPrimary"
+                app:strokeWidth="1dp"
+                android:textColor="@color/colorPrimary" />
 
         </LinearLayout>
     </ScrollView>

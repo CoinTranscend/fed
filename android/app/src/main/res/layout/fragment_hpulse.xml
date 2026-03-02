@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="@color/colorBackground">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HPulse"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/colorSecondary"
+        android:letterSpacing="0.08"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Household Pulse Index"
+        android:textSize="13sp"
+        android:textColor="@color/colorTextSecondary"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Burn Zone  ·  Middle Pulse  ·  Buffer Zone"
+        android:textSize="11sp"
+        android:textColor="@color/colorTextSecondary"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0 – 100 stress scoring  ·  Coming soon"
+        android:textSize="11sp"
+        android:textColor="@color/colorTextSecondary"
+        android:fontFamily="monospace" />
+
+</LinearLayout>
