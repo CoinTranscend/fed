@@ -1,6 +1,7 @@
 package com.sun.feddashboard.domain
 
 import com.sun.feddashboard.model.HPulseComponentScore
+import com.sun.feddashboard.model.HPulseHistoryPoint
 import com.sun.feddashboard.model.HPulsePoint
 import com.sun.feddashboard.model.HPulseResult
 import com.sun.feddashboard.network.FredClient
@@ -249,5 +250,108 @@ object HPulseEngine {
         score >= 50f -> "STRAINED"
         score >= 25f -> "WARMING"
         else         -> "STABLE"
+    }
+
+    // ── 30-year history export ────────────────────────────────────────────────
+
+    /**
+     * Fetches [historyYears] of FRED data and returns the full HPulse tier history
+     * for chart export. Separate from [compute] to avoid cache bloat.
+     */
+    fun computeHistory(fredApiKey: String, historyYears: Long = 30): List<HPulseHistoryPoint>? {
+        if (fredApiKey.isBlank()) return null
+
+        val startDate = LocalDate.now().minusYears(historyYears + 1)
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val allIds = listOf(SHELTER, FOOD, GAS, UTILITY, AHE, REVOLSL, DELINQ, PSAVERT)
+        val rawSeries = mutableMapOf<String, List<Pair<String, Double?>>>()
+        for (id in allIds) {
+            val data = try { FredClient.fetchSeries(id, fredApiKey, startDate) }
+                       catch (_: Exception) { emptyList() }
+            if (data.isNotEmpty()) rawSeries[id] = data
+        }
+        if (rawSeries[AHE] == null || (rawSeries[SHELTER] == null && rawSeries[FOOD] == null)) return null
+
+        val allMonths = rawSeries.values
+            .flatMap { it.map { p -> p.first } }
+            .toSortedSet().toList()
+        if (allMonths.isEmpty()) return null
+
+        fun yoy(id: String): Map<String, Double?> {
+            val raw = rawSeries[id] ?: return emptyMap()
+            val filled = EngineBase.forwardFill(allMonths, raw.toMap())
+            return EngineBase.applyYoY(allMonths, filled)
+        }
+        fun level(id: String): Map<String, Double?> {
+            val raw = rawSeries[id] ?: return emptyMap()
+            return EngineBase.forwardFill(allMonths, raw.toMap(), limit = 4)
+        }
+
+        val shelterYoY  = yoy(SHELTER)
+        val foodYoY     = yoy(FOOD)
+        val gasYoY      = yoy(GAS)
+        val utilYoY     = yoy(UTILITY)
+        val aheYoY      = yoy(AHE)
+        val revolYoY    = yoy(REVOLSL)
+        val delinqLevel = level(DELINQ)
+        val psavertLvl  = level(PSAVERT)
+
+        fun clamp(v: Double) = max(0.0, min(100.0, v))
+        fun burden(p: Double?, a: Double?) = if (p == null || a == null) null else p - a
+
+        fun ess(h: Double?, g: Double?, gas: Double?, u: Double?, w: DoubleArray): Double? {
+            var num = 0.0; var den = 0.0
+            listOf(h to w[0], g to w[1], gas to w[2], u to w[3]).forEach { (v, wt) ->
+                if (v != null) { num += v * wt; den += wt }
+            }
+            return if (den > 0.0) num / den else null
+        }
+        fun debt(c: Double?, d: Double?, s: Double?): Double? {
+            var num = 0.0; var den = 0.0
+            listOf(c to 0.40, d to 0.40, s to 0.20).forEach { (v, w) ->
+                if (v != null) { num += v * w; den += w }
+            }
+            return if (den > 0.0) num / den else null
+        }
+        fun tier(e: Double?, d: Double?, ew: Double, dw: Double): Double? {
+            if (e == null && d == null) return null
+            var num = 0.0; var den = 0.0
+            if (e != null) { num += e * ew; den += ew }
+            if (d != null) { num += d * dw; den += dw }
+            return if (den > 0.0) num / den else null
+        }
+
+        val result = mutableListOf<HPulseHistoryPoint>()
+        for (month in allMonths) {
+            val ahe     = aheYoY[month]
+            val housing = burden(shelterYoY[month], ahe)?.let { clamp((it / 0.06) * 100.0) }
+            val grocery = burden(foodYoY[month], ahe)?.let { clamp((it / 0.08) * 100.0) }
+            val gas     = burden(gasYoY[month], ahe)?.let { clamp(((it + 0.15) / 0.30) * 100.0) }
+            val utility = burden(utilYoY[month], ahe)?.let { clamp((it / 0.10) * 100.0) }
+            val card    = revolYoY[month]?.let { clamp((it / 0.15) * 100.0) }
+            val delinq  = delinqLevel[month]?.let { clamp(((it - 1.5) / 5.5) * 100.0) }
+            val cushion = psavertLvl[month]?.let { clamp(((8.0 - it) / 6.0) * 100.0) }
+            val debtS   = debt(card, delinq, cushion)
+
+            val burn   = tier(ess(housing, grocery, gas, utility, BURN_ESS_W),   debtS, 0.60, 0.40)
+            val middle = tier(ess(housing, grocery, gas, utility, MIDDLE_ESS_W), debtS, 0.70, 0.30)
+            val buffer = tier(ess(housing, grocery, gas, utility, BUFFER_ESS_W), debtS, 0.75, 0.25)
+
+            var cNum = 0.0; var cDen = 0.0
+            listOf(burn to 0.59, middle to 0.27, buffer to 0.14).forEach { (v, w) ->
+                if (v != null) { cNum += v * w; cDen += w }
+            }
+            if (cDen > 0.0) {
+                result.add(HPulseHistoryPoint(
+                    yearMonth   = month,
+                    composite   = (cNum / cDen).toFloat(),
+                    burnScore   = burn?.toFloat()   ?: (cNum / cDen).toFloat(),
+                    middleScore = middle?.toFloat() ?: (cNum / cDen).toFloat(),
+                    bufferScore = buffer?.toFloat() ?: (cNum / cDen).toFloat(),
+                ))
+            }
+        }
+        return result.ifEmpty { null }
     }
 }

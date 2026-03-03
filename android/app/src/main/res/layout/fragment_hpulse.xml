@@ -298,17 +298,54 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- HD export button -->
+            <!-- 30-year export button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDownloadHD"
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
-                android:text="⬇ HD Chart"
+                android:text="⬇ 30-Year Chart"
                 android:textSize="11sp"
                 app:backgroundTint="@color/colorSurface"
                 app:strokeColor="@color/colorSecondary"
                 app:strokeWidth="1dp"
                 android:textColor="@color/colorSecondary" />
+
+            <!-- FRED data sources card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="0dp"
+                android:layout_marginTop="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="FRED DATA SOURCES  ·  HPulse"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.06"
+                        android:layout_marginBottom="6dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/colorText"
+                        android:textSize="10sp"
+                        android:fontFamily="monospace"
+                        android:lineSpacingMultiplier="1.55"
+                        android:text="Essentials Pressure  (real burden = price YoY − wage YoY)\n  CUSR0000SEHA    Shelter CPI           (housing, 58–68% wt)\n  CPIUFDSL        Food at Home CPI      (grocery, 15–18% wt)\n  CUSR0000SETB01  Gasoline CPI          (gas, 6–9% wt)\n  CUSR0000SAH2    Household Energy CPI  (utility, 11–15% wt)\n  CES0500000003   Avg Hourly Earnings   ← wage anchor\n\nDebt Stress\n  REVOLSL         CC Revolving Balances YoY  (40% wt)\n  DRCCLACBS       CC Delinquency Rate        (40% wt)\n  PSAVERT         Personal Savings Rate      (20% wt)" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
     </ScrollView>

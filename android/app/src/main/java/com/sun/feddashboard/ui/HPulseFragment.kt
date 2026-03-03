@@ -17,7 +17,9 @@ import com.sun.feddashboard.databinding.FragmentHpulseBinding
 import com.sun.feddashboard.domain.HPulseEngine
 import com.sun.feddashboard.model.GeminiHPulseStatus
 import com.sun.feddashboard.model.HPulseComponentScore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HPulseFragment : Fragment() {
 
@@ -36,7 +38,7 @@ class HPulseFragment : Fragment() {
         binding.swipeRefresh.setOnRefreshListener { vm.refreshHPulse() }
         binding.btnRefresh.setOnClickListener { vm.refreshHPulse() }
         binding.btnInfo.setOnClickListener { showInfo() }
-        binding.btnDownloadHD.setOnClickListener { exportHD() }
+        binding.btnDownloadHD.setOnClickListener { export30Yr() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -121,17 +123,28 @@ class HPulseFragment : Fragment() {
         }
     }
 
-    // ── Export ────────────────────────────────────────────────────────────────
+    // ── 30-Year Export ────────────────────────────────────────────────────────
 
-    private fun exportHD() {
-        val result = vm.hPulseResult.value
-        if (result == null) {
-            Snackbar.make(binding.root, "No data yet — fetch first.", Snackbar.LENGTH_SHORT).show()
+    private fun export30Yr() {
+        val band = vm.hPulseResult.value?.band ?: "WARMING"
+        val fredKey = vm.loadFredKey()
+        if (fredKey.isBlank()) {
+            Snackbar.make(binding.root, "Enter FRED API key in Settings first.", Snackbar.LENGTH_SHORT).show()
             return
         }
-        Snackbar.make(binding.root,
-            "HPulse HD export not yet supported — use screenshot for now.",
-            Snackbar.LENGTH_SHORT).show()
+        binding.btnDownloadHD.isEnabled = false
+        val ctx = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            Snackbar.make(binding.root, "Fetching 30 years from FRED…", Snackbar.LENGTH_LONG).show()
+            val path = withContext(Dispatchers.IO) {
+                val history = HPulseEngine.computeHistory(fredKey) ?: return@withContext null
+                ChartExporter.exportHPulseHistory(ctx, history, band)
+            }
+            Snackbar.make(binding.root,
+                if (path != null) "Saved to $path" else "Export failed — check connection.",
+                Snackbar.LENGTH_LONG).show()
+            binding.btnDownloadHD.isEnabled = true
+        }
     }
 
     // ── Info dialog ───────────────────────────────────────────────────────────

@@ -1,5 +1,14 @@
 package com.sun.feddashboard.model
 
+/** One month of 30-year HPulse history — keyed by YYYY-MM for NBER recession matching. */
+data class HPulseHistoryPoint(
+    val yearMonth: String,    // "YYYY-MM"
+    val composite: Float,
+    val burnScore: Float,
+    val middleScore: Float,
+    val bufferScore: Float,
+)
+
 /** One month of HPulse data — all values on the 0–100 stress scale. */
 data class HPulsePoint(
     val monthLabel: String,

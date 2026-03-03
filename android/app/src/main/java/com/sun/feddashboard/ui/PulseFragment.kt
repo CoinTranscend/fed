@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentPulseBinding
+import com.sun.feddashboard.domain.PulseEngine
 import com.sun.feddashboard.model.ComponentReading
 import com.sun.feddashboard.model.GeminiPulseStatus
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +38,7 @@ class PulseFragment : Fragment() {
         binding.swipeRefresh.setOnRefreshListener { vm.refreshPulse() }
         binding.btnRefresh.setOnClickListener { vm.refreshPulse() }
         binding.btnInfo.setOnClickListener { showInfo() }
-        binding.btnDownloadHD.setOnClickListener { exportHD() }
+        binding.btnDownloadHD.setOnClickListener { export30Yr() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -116,32 +117,25 @@ class PulseFragment : Fragment() {
         }
     }
 
-    // ── Export ────────────────────────────────────────────────────────────────
+    // ── 30-Year Export ────────────────────────────────────────────────────────
 
-    private fun exportHD() {
-        val result = vm.pulseResult.value
-        if (result == null) {
-            Snackbar.make(binding.root, "No data yet — fetch first.", Snackbar.LENGTH_SHORT).show()
+    private fun export30Yr() {
+        val regime = vm.pulseResult.value?.regime ?: "STABLE"
+        val fredKey = vm.loadFredKey()
+        if (fredKey.isBlank()) {
+            Snackbar.make(binding.root, "Enter FRED API key in Settings first.", Snackbar.LENGTH_SHORT).show()
             return
         }
         binding.btnDownloadHD.isEnabled = false
         val ctx = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
+            Snackbar.make(binding.root, "Fetching 30 years from FRED…", Snackbar.LENGTH_LONG).show()
             val path = withContext(Dispatchers.IO) {
-                ChartExporter.exportSingle(
-                    ctx,
-                    title      = "PULSE  —  Consumer Stress Index",
-                    regular    = result.points,
-                    leading    = emptyList(),
-                    regRegime  = result.regime,
-                    leadRegime = result.regime,
-                    regScore   = result.current,
-                    leadScore  = null,
-                    fileName   = "fed_pulse_HD.png",
-                )
+                val history = PulseEngine.computeHistory(fredKey) ?: return@withContext null
+                ChartExporter.exportPulseHistory(ctx, history, regime)
             }
             Snackbar.make(binding.root,
-                if (path != null) "Saved to $path" else "Export failed.",
+                if (path != null) "Saved to $path" else "Export failed — check connection.",
                 Snackbar.LENGTH_LONG).show()
             binding.btnDownloadHD.isEnabled = true
         }

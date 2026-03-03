@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.sun.feddashboard.model.ChartPoint
+import com.sun.feddashboard.model.HPulseHistoryPoint
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -295,6 +296,7 @@ object ChartExporter {
         history: List<Pair<String, Float>>,
         regime: String,
         fileName: String,
+        footerNote: String? = null,
     ): String? {
         if (history.isEmpty()) return null
 
@@ -449,10 +451,229 @@ object ChartExporter {
             this.color = Color.parseColor("#9E9E9E")
             textSize   = 7f * scale
         }
-        val note = "Shaded = NBER recessions  ·  RRI: 8-series z-score composite  ·  Regime bands: ≥+0.5 LOW RISK → < −1.0 CRITICAL"
+        val note = footerNote
+            ?: "Shaded = NBER recessions  ·  RRI: 8-series z-score composite  ·  Regime bands: ≥+0.5 LOW RISK → < −1.0 CRITICAL"
         canvas.drawText(note, padL, padT + chartH + 28f * scale, notePaint)
 
         return saveToDownloads(context, bitmap, fileName)
+    }
+
+    // ── PULSE 30-year export ──────────────────────────────────────────────────
+
+    fun exportPulseHistory(
+        context: Context,
+        history: List<Pair<String, Float>>,
+        regime: String,
+    ): String? = exportLongHistory(
+        context    = context,
+        title      = "PULSE  —  30-Year Consumer Stress History",
+        history    = history,
+        regime     = regime,
+        fileName   = "fed_pulse_30yr.png",
+        footerNote = "Shaded = NBER recessions  ·  PULSE: 15-series distributional stress composite" +
+                     "  ·  RESILIENT ≥+0.5  |  STABLE ≥0.0  |  STRESSED ≥−0.5  |  STRAINED ≥−1.0  |  BREAKING < −1.0",
+    )
+
+    // ── HPulse 30-year export ─────────────────────────────────────────────────
+
+    fun exportHPulseHistory(
+        context: Context,
+        history: List<HPulseHistoryPoint>,
+        band: String,
+    ): String? {
+        if (history.isEmpty()) return null
+
+        val W = 2400; val H = 900
+        val bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+
+        val scale = W / 480f
+
+        // ── Paints ────────────────────────────────────────────────────────────
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color          = Color.parseColor("#1C1C1E")
+            textSize       = 13f * scale
+            isFakeBoldText = true
+        }
+        val axisLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color     = Color.parseColor("#9E9E9E")
+            textSize  = 7.5f * scale
+            textAlign = Paint.Align.RIGHT
+            typeface  = Typeface.MONOSPACE
+        }
+        val xLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color     = Color.parseColor("#9E9E9E")
+            textSize  = 7.5f * scale
+            textAlign = Paint.Align.CENTER
+        }
+        val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#E0E0E0")
+            strokeWidth = 0.7f * scale
+            style       = Paint.Style.STROKE
+        }
+        val burnPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#EF5350")
+            strokeWidth = 2.5f * scale
+            style       = Paint.Style.STROKE
+            strokeJoin  = Paint.Join.ROUND
+            strokeCap   = Paint.Cap.ROUND
+        }
+        val middlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#F9A825")
+            strokeWidth = 2f * scale
+            style       = Paint.Style.STROKE
+            strokeJoin  = Paint.Join.ROUND
+            strokeCap   = Paint.Cap.ROUND
+        }
+        val bufferPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color       = Color.parseColor("#66BB6A")
+            strokeWidth = 1.5f * scale
+            style       = Paint.Style.STROKE
+            strokeJoin  = Paint.Join.ROUND
+            strokeCap   = Paint.Cap.ROUND
+        }
+        val recessionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(35, 120, 120, 120)
+            style = Paint.Style.FILL
+        }
+        val recessionLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color     = Color.parseColor("#AAAAAA")
+            textSize  = 6.5f * scale
+            textAlign = Paint.Align.CENTER
+        }
+        val calloutPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize       = 11f * scale
+            isFakeBoldText = true
+        }
+        val legendLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style     = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+        }
+        val legendTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 8.5f * scale
+            color    = Color.parseColor("#757575")
+        }
+        val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        val notePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color    = Color.parseColor("#9E9E9E")
+            textSize = 7f * scale
+        }
+
+        // ── Layout ────────────────────────────────────────────────────────────
+        val padL  = 50f * scale
+        val padR  = 70f * scale   // room for callouts
+        val padT  = 44f * scale
+        val padB  = 48f * scale
+        val chartW = W - padL - padR
+        val chartH = H - padT - padB
+
+        fun yOf(v: Float) = padT + chartH * (1f - v / 100f)   // fixed 0–100
+
+        val n = history.size.coerceAtLeast(1)
+        fun xOf(i: Int) = padL + i * chartW / (n - 1).coerceAtLeast(1)
+
+        // Title
+        canvas.drawText("HPulse  —  30-Year Household Stress History", padL, 26f * scale, titlePaint)
+
+        // 1. Stress bands (0-25 green, 25-50 amber, 50-75 orange, 75-100 red)
+        data class Band(val lo: Float, val hi: Float, val argb: Int)
+        val bands = listOf(
+            Band(75f, 100f, Color.argb(28, 198, 40,  40)),
+            Band(50f,  75f, Color.argb(22, 230, 74,  25)),
+            Band(25f,  50f, Color.argb(20, 249, 168, 37)),
+            Band( 0f,  25f, Color.argb(18, 67,  160, 71)),
+        )
+        for (b in bands) {
+            bandFillPaint.color = b.argb
+            canvas.drawRect(padL, yOf(b.hi), padL + chartW, yOf(b.lo), bandFillPaint)
+        }
+
+        // 2. NBER recession shading
+        val nberRecessions = listOf(
+            Triple("1990-07", "1991-03", "GFC'90"),
+            Triple("2001-03", "2001-11", "Dot-com"),
+            Triple("2007-12", "2009-06", "GFC"),
+            Triple("2020-02", "2020-04", "COVID"),
+        )
+        for ((start, end, label) in nberRecessions) {
+            val si = history.indexOfFirst { it.yearMonth >= start }
+            val ei = history.indexOfLast  { it.yearMonth <= end }
+            if (si < 0 || ei < si) continue
+            val rx = xOf(si)
+            val rw = (xOf(ei) - rx).coerceAtLeast(1f)
+            canvas.drawRect(rx, padT, rx + rw, padT + chartH, recessionPaint)
+            canvas.drawText(label, rx + rw / 2f, padT + 8f * scale, recessionLabelPaint)
+        }
+
+        // 3. Gridlines + y-axis labels at band boundaries
+        for (level in listOf(0, 25, 50, 75, 100)) {
+            val y = yOf(level.toFloat()).coerceIn(padT, padT + chartH)
+            canvas.drawLine(padL, y, padL + chartW, y, gridPaint)
+            canvas.drawText("$level", padL - 4f * scale, y + axisLabelPaint.textSize * 0.38f, axisLabelPaint)
+        }
+
+        // 4. Three lines (Buffer behind, Middle middle, Burn on top)
+        fun drawLine(values: List<Float>, paint: Paint) {
+            if (values.size < 2) return
+            val path = Path()
+            path.moveTo(xOf(0), yOf(values[0]))
+            for (i in 1 until values.size) path.lineTo(xOf(i), yOf(values[i]))
+            canvas.drawPath(path, paint)
+        }
+        drawLine(history.map { it.bufferScore }, bufferPaint)
+        drawLine(history.map { it.middleScore }, middlePaint)
+        drawLine(history.map { it.burnScore },   burnPaint)
+
+        // 5. X-axis: every 5 years
+        var lastYr = ""
+        for (i in history.indices) {
+            val yr = history[i].yearMonth.substringBefore("-")
+            val mo = history[i].yearMonth.substringAfter("-").toIntOrNull() ?: 0
+            val show = (mo == 1 && (yr.toIntOrNull() ?: 0) % 5 == 0) || i == 0 || i == n - 1
+            if (show && yr != lastYr) {
+                canvas.drawText(yr, xOf(i), padT + chartH + 16f * scale, xLabelPaint)
+                lastYr = yr
+            }
+        }
+
+        // 6. Right-side callouts
+        val last = history.last()
+        val calloutX = padL + chartW + 6f * scale
+        calloutPaint.color = Color.parseColor("#EF5350")
+        canvas.drawText("%.1f".format(last.burnScore), calloutX,
+            yOf(last.burnScore).coerceIn(padT + 12f * scale, padT + chartH - 4f * scale), calloutPaint)
+        calloutPaint.color = Color.parseColor("#F9A825")
+        canvas.drawText("%.1f".format(last.middleScore), calloutX,
+            yOf(last.middleScore).coerceIn(padT + 24f * scale, padT + chartH - 4f * scale), calloutPaint)
+        calloutPaint.color = Color.parseColor("#66BB6A")
+        canvas.drawText("%.1f".format(last.bufferScore), calloutX,
+            yOf(last.bufferScore).coerceIn(padT + 36f * scale, padT + chartH - 4f * scale), calloutPaint)
+
+        // 7. Legend
+        val legY  = padT + chartH + 36f * scale
+        var legX  = padL
+        val lineLen = 18f * scale
+        data class LegItem(val color: Int, val width: Float, val label: String)
+        for (item in listOf(
+            LegItem(Color.parseColor("#EF5350"), 2.5f * scale, "Burn Zone (≤ \$65k)"),
+            LegItem(Color.parseColor("#F9A825"), 2f   * scale, "Middle Pulse (\$65–105k)"),
+            LegItem(Color.parseColor("#66BB6A"), 1.5f * scale, "Buffer Zone (\$105–175k)"),
+        )) {
+            legendLinePaint.color       = item.color
+            legendLinePaint.strokeWidth = item.width
+            canvas.drawLine(legX, legY, legX + lineLen, legY, legendLinePaint)
+            legX += lineLen + 5f * scale
+            canvas.drawText(item.label, legX, legY + 4f * scale, legendTextPaint)
+            legX += legendTextPaint.measureText(item.label) + 16f * scale
+        }
+
+        // 8. Footer note
+        canvas.drawText(
+            "Shaded = NBER recessions  ·  HPulse: 0=stable, 100=maximum stress  ·  Bands: 0–24 STABLE | 25–49 WARMING | 50–74 STRAINED | 75–100 BURN",
+            padL, legY + 14f * scale, notePaint)
+
+        return saveToDownloads(context, bitmap, "fed_hpulse_30yr.png")
     }
 
     // ── Persistence ───────────────────────────────────────────────────────────
@@ -497,12 +718,12 @@ object ChartExporter {
     // ── Color helpers ─────────────────────────────────────────────────────────
 
     fun colorFromRegime(r: String): Int = when (r) {
-        "STRONG", "COOLING", "LOW RISK"  -> Color.parseColor("#43A047")
-        "MODERATE", "ANCHORED", "STABLE" -> Color.parseColor("#00897B")
-        "SOFTENING", "RISING", "CAUTION" -> Color.parseColor("#F9A825")
-        "WEAK", "ELEVATED", "WARNING"    -> Color.parseColor("#E64A19")
-        "CRITICAL"                        -> Color.parseColor("#C62828")
-        "DEFLATIONARY"                    -> Color.parseColor("#4527A0")
-        else                              -> Color.parseColor("#00897B")
+        "RESILIENT", "STRONG", "COOLING", "LOW RISK"           -> Color.parseColor("#43A047")
+        "STABLE", "MODERATE", "ANCHORED"                        -> Color.parseColor("#00897B")
+        "STRESSED", "SOFTENING", "RISING", "CAUTION", "WARMING"-> Color.parseColor("#F9A825")
+        "STRAINED", "WEAK", "ELEVATED", "WARNING"              -> Color.parseColor("#E64A19")
+        "BREAKING", "CRITICAL", "BURN"                          -> Color.parseColor("#C62828")
+        "DEFLATIONARY"                                           -> Color.parseColor("#4527A0")
+        else                                                     -> Color.parseColor("#00897B")
     }
 }

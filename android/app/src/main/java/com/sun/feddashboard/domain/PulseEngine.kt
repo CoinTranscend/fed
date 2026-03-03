@@ -291,6 +291,86 @@ object PulseEngine {
         return result
     }
 
+    // ── 30-year history export ────────────────────────────────────────────────
+
+    /**
+     * Fetches [historyYears] of FRED data and returns the full PULSE composite
+     * history as (YYYY-MM, composite z-score) pairs for chart export.
+     * This is a separate call from [compute] to avoid bloating the SharedPreferences cache.
+     */
+    fun computeHistory(fredApiKey: String, historyYears: Long = 30): List<Pair<String, Float>>? {
+        if (fredApiKey.isBlank()) return null
+
+        val startDate = LocalDate.now().minusYears(historyYears + 1)  // +1 for YoY warm-up
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val allSpecIds = EIP_SERIES.map { it.id } + listOf(AHE_ID) +
+                         ASI_SERIES.map { it.id } + FSS_SERIES.map { it.id }
+
+        val rawSeries = mutableMapOf<String, List<Pair<String, Double?>>>()
+        for (id in allSpecIds.distinct()) {
+            val data = try { FredClient.fetchSeries(id, fredApiKey, startDate) }
+                       catch (_: Exception) { emptyList() }
+            if (data.isNotEmpty()) rawSeries[id] = data
+        }
+        if (rawSeries.isEmpty()) return null
+
+        val allMonths = rawSeries.values
+            .flatMap { s -> s.map { it.first } }
+            .toSortedSet().toList()
+
+        // EIP
+        val eipYoY = mutableMapOf<String, Map<String, Double?>>()
+        for (spec in EIP_SERIES) {
+            val raw = rawSeries[spec.id] ?: continue
+            val filled = EngineBase.forwardFill(allMonths, raw.toMap())
+            eipYoY[spec.id] = EngineBase.applyYoY(allMonths, filled)
+        }
+        val aheYoY: Map<String, Double?> = rawSeries[AHE_ID]?.let {
+            val filled = EngineBase.forwardFill(allMonths, it.toMap())
+            EngineBase.applyYoY(allMonths, filled)
+        } ?: emptyMap()
+
+        val eipRaw = LinkedHashMap<String, Double?>()
+        for (month in allMonths) {
+            val ahe = aheYoY[month]
+            var q1n = 0.0; var q1d = 0.0
+            var q2n = 0.0; var q2d = 0.0
+            var q3n = 0.0; var q3d = 0.0
+            for (spec in EIP_SERIES) {
+                val item = eipYoY[spec.id]?.get(month)
+                if (item != null && ahe != null) {
+                    val burden = -(item - ahe)
+                    q1n += spec.q1 * burden; q1d += spec.q1
+                    q2n += spec.q2 * burden; q2d += spec.q2
+                    q3n += spec.q3 * burden; q3d += spec.q3
+                }
+            }
+            val q1 = if (q1d > 0.0) q1n / q1d else null
+            val q2 = if (q2d > 0.0) q2n / q2d else null
+            val q3 = if (q3d > 0.0) q3n / q3d else null
+            var num = 0.0; var den = 0.0
+            listOf(q1 to 0.50, q2 to 0.35, q3 to 0.15)
+                .forEach { (v, w) -> if (v != null) { num += v * w; den += w } }
+            eipRaw[month] = if (den > 0.0) num / den else null
+        }
+        val eipZ = EngineBase.rollingZScore(allMonths, eipRaw)
+
+        // ASI + FSS
+        val asiZ = computeStdIndex(allMonths, rawSeries, ASI_SERIES)
+        val fssZ = computeStdIndex(allMonths, rawSeries, FSS_SERIES)
+
+        // Composite
+        val result = mutableListOf<Pair<String, Float>>()
+        for (month in allMonths) {
+            var num = 0.0; var den = 0.0
+            listOf(eipZ[month] to 0.40, asiZ[month] to 0.35, fssZ[month] to 0.25)
+                .forEach { (v, w) -> if (v != null && !v.isNaN()) { num += v * w; den += w } }
+            if (den > 0.0) result.add(month to (num / den).toFloat())
+        }
+        return result.ifEmpty { null }
+    }
+
     private fun classifyRegime(score: Double) = when {
         score >= 0.5  -> "RESILIENT"
         score >= 0.0  -> "STABLE"
