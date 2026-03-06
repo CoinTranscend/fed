@@ -104,7 +104,7 @@ class RecessionFragment : Fragment() {
                             // Recent monthly readings (note: yield/spread components update daily)
                             val last4 = rri.points.takeLast(4)
                             binding.tvRecentReadings.text =
-                                last4.joinToString("   ") { "${it.monthLabel} ${"%+.2f".format(it.value)}" } +
+                                last4.joinToString("   ") { "${it.monthLabel} = ${"%+.2f".format(it.value)}" } +
                                 "\n↺ yield curve & HY spread components refresh daily"
                             binding.tvRecentReadings.visibility = View.VISIBLE
                         } else {

@@ -86,7 +86,7 @@ class HPulseFragment : Fragment() {
                             // Recent monthly readings
                             val last4 = result.points.takeLast(4)
                             binding.tvRecentReadings.text =
-                                last4.joinToString("   ") { "${it.monthLabel} ${"%.1f".format(it.composite)}" }
+                                last4.joinToString("   ") { "${it.monthLabel} = ${"%.1f".format(it.composite)}" }
                             binding.tvRecentReadings.visibility = View.VISIBLE
                         } else {
                             binding.tvCompositeScore.text = "No data — tap ↻"

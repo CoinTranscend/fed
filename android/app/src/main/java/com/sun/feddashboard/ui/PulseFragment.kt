@@ -81,7 +81,7 @@ class PulseFragment : Fragment() {
                             // Recent monthly readings
                             val last4 = result.points.takeLast(4)
                             binding.tvRecentReadings.text =
-                                last4.joinToString("   ") { "${it.monthLabel} ${"%+.2f".format(it.value)}" }
+                                last4.joinToString("   ") { "${it.monthLabel} = ${"%+.2f".format(it.value)}" }
                             binding.tvRecentReadings.visibility = View.VISIBLE
                         } else {
                             binding.tvScore.text = "No data — tap ↻"

@@ -68,7 +68,7 @@ class FedCompareFragment : Fragment() {
                             binding.tvInflationUpdated.text =
                                 "Updated ${isi.updatedAt}  ·  ${isi.lastDataMonth}"
                             updateInflationRecent(isi.points.takeLast(4).joinToString("   ") {
-                                "${it.monthLabel} ${"%+.2f".format(it.value)}"
+                                "${it.monthLabel} = ${"%+.2f".format(it.value)}"
                             })
                         } else {
                             binding.tvInflationScore.text = "No data — tap ↻"
@@ -106,7 +106,7 @@ class FedCompareFragment : Fragment() {
                             binding.tvLaborUpdated.text =
                                 "Updated ${lsi.updatedAt}  ·  ${lsi.lastDataMonth}"
                             updateLaborRecent(lsi.points.takeLast(4).joinToString("   ") {
-                                "${it.monthLabel} ${"%+.2f".format(it.value)}"
+                                "${it.monthLabel} = ${"%+.2f".format(it.value)}"
                             })
                         } else {
                             binding.tvLaborScore.text = "No data — tap ↻"
