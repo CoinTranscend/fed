@@ -92,6 +92,9 @@ object ReleaseSchedule {
         "GOLDAMGBD228NLBM"      to Release.COMMODITY_MONTHLY,
         "DRCCLACBS"             to Release.FR_DELINQUENCY,
         "CORCCACBS"             to Release.FR_DELINQUENCY,
+        // Computed composites used internally by RecessionEngine
+        "COPPER_GOLD"           to Release.COMMODITY_MONTHLY,
+        "REAL_M2"               to Release.M2_MONEY,
     )
 
     // ── Per-index series lists ────────────────────────────────────────────────
@@ -125,40 +128,69 @@ object ReleaseSchedule {
     /**
      * Builds a monospace text block sorted by next release date.
      * Three columns per row:
-     *   %-22s  %-9s  → %s
-     *   [source report]  [last data vintage]  [next release date]
+     *   %-22s  %-8s  → %s
+     *   [source report]  [last release date]  [next release date]
      *
      * Example (today = March 6, 2026 — Employment Situation released today):
-     *   Employment Situation    Feb 2026  → Apr 3
-     *   JOLTS (BLS)             Jan 2026  → Mar 10
-     *   CPI (BLS)               Jan 2026  → Mar 11
-     *   Jobless Claims          wk Mar 1  → Thu Mar 12
-     *   UMich Sentiment         Feb 2026  → Mar 13
-     *   Treasury Yields         current   → daily
+     *   Employment Situa    Mar 6   → Apr 3
+     *   JOLTS (BLS)         Feb 4   → Mar 10
+     *   CPI (BLS)           Feb 12  → Mar 11
+     *   Jobless Claims      Mar 5   → Thu Mar 12
+     *   UMich Sentiment     Feb 28  → Mar 13
+     *   Treasury Yields     daily   → daily
      */
     fun buildReleasesText(seriesIds: List<String>, today: LocalDate = LocalDate.now()): String {
         val seen = mutableSetOf<Release>()
-        data class Row(val rel: Release, val latestLbl: String, val nextDt: LocalDate, val nextLbl: String)
+        data class Row(val rel: Release, val lastLbl: String, val nextDt: LocalDate, val nextLbl: String)
         val rows = mutableListOf<Row>()
 
         for (id in seriesIds) {
             val rel = SERIES_RELEASE[id] ?: continue
             if (!seen.add(rel)) continue
-            val nextDt  = nextDate(rel, today)
-            rows.add(Row(rel, latestDataLabel(rel, today), nextDt, formatNextDate(rel, nextDt)))
+            val nextDt = nextDate(rel, today)
+            rows.add(Row(rel, latestReleaseLabel(rel, today), nextDt, formatNextDate(rel, nextDt)))
         }
         rows.sortBy { it.nextDt }
         return rows.joinToString("\n") { r ->
-            "%-22s  %-9s  → %s".format(r.rel.displayName.take(22), r.latestLbl, r.nextLbl)
+            "%-22s  %-8s  → %s".format(r.rel.displayName.take(22), r.lastLbl, r.nextLbl)
         }
     }
 
-    // ── Latest data vintage label ─────────────────────────────────────────────
+    // ── Last release date label ───────────────────────────────────────────────
 
     /**
-     * Returns a short label for the most recent data currently available,
-     * accounting for each release's publication lag.
-     *
+     * Returns a short label for when this release was most recently published.
+     * Examples: "Mar 6", "Feb 12", "Mar 5", "daily", "Dec 1"
+     */
+    private fun latestReleaseLabel(release: Release, today: LocalDate): String = when (release) {
+
+        Release.TREASURY_DAILY,
+        Release.ICE_DAILY -> "daily"
+
+        Release.JOBLESS_CLAIMS -> {
+            // Released every Thursday — show the most recent Thursday on or before today
+            val lastThursday = mostRecentDow(today, DayOfWeek.THURSDAY)
+            lastThursday.format(FMT_MMM_D)
+        }
+
+        Release.FR_DELINQUENCY -> {
+            // Quarterly — show the most recent quarterly release date
+            quarterReleases(today)
+                .filter { (releaseDate, _) -> releaseDate <= today }
+                .maxByOrNull { it.first }?.first?.format(FMT_MMM_D) ?: "pending"
+        }
+
+        else -> {
+            // Monthly — show the calendar date of the most recent release
+            val lastRel = latestMonthlyReleaseDate(release, today)
+            lastRel.format(FMT_MMM_D)
+        }
+    }
+
+    // ── Latest data vintage label (kept for potential future use) ─────────────
+
+    /**
+     * Returns the data period covered by the most recent release.
      * Examples: "Jan 2026", "Feb 2026", "wk Mar 1", "Q4 2025", "current"
      */
     fun latestDataLabel(release: Release, today: LocalDate): String = when (release) {

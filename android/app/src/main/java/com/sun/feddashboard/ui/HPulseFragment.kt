@@ -82,7 +82,6 @@ class HPulseFragment : Fragment() {
 
                             // Chart
                             binding.hpulseChart.points = result.points
-
                         } else {
                             binding.tvCompositeScore.text = "No data — tap ↻"
                             binding.tvCompositeScore.setTextColor(Color.parseColor("#4A6680"))
