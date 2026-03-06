@@ -15,6 +15,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentHpulseBinding
 import com.sun.feddashboard.domain.HPulseEngine
+import com.sun.feddashboard.domain.ReleaseSchedule
 import com.sun.feddashboard.model.GeminiHPulseStatus
 import com.sun.feddashboard.model.HPulseComponentScore
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,8 @@ class HPulseFragment : Fragment() {
         binding.btnRefresh.setOnClickListener { vm.refreshHPulse() }
         binding.btnInfo.setOnClickListener { showInfo() }
         binding.btnDownloadHD.setOnClickListener { export30Yr() }
+
+        binding.tvDataSources.text = ReleaseSchedule.buildReleasesText(ReleaseSchedule.hpulseSeriesIds())
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {

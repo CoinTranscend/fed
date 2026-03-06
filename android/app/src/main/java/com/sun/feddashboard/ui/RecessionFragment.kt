@@ -22,6 +22,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentRecessionBinding
 import com.sun.feddashboard.domain.RecessionEngine
+import com.sun.feddashboard.domain.ReleaseSchedule
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -64,6 +65,8 @@ class RecessionFragment : Fragment() {
         binding.btnInfo.setOnClickListener { showInfo() }
         binding.btnDownloadHD.setOnClickListener { exportHD() }
         binding.btnDownload30Y.setOnClickListener { export30YChart() }
+
+        binding.tvDataSources.text = ReleaseSchedule.buildReleasesText(ReleaseSchedule.rriSeriesIds())
 
         // AI Analysis button: fetch if no narrative yet, or show popup if already fetched
         binding.btnAiAnalysis.setOnClickListener {

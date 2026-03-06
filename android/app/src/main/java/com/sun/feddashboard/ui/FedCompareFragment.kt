@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentFedCompareBinding
+import com.sun.feddashboard.domain.ReleaseSchedule
 import com.sun.feddashboard.model.ComponentReading
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,6 +40,8 @@ class FedCompareFragment : Fragment() {
         binding.btnLaborInfo.setOnClickListener { showLaborInfo() }
         binding.btnInflationHD.setOnClickListener { exportInflationHD() }
         binding.btnLaborHD.setOnClickListener { exportLaborHD() }
+
+        binding.tvDataSources.text = ReleaseSchedule.buildReleasesText(ReleaseSchedule.isiLsiSeriesIds())
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {

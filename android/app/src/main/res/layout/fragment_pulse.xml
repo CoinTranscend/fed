@@ -325,20 +325,21 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="FRED DATA SOURCES  ·  PULSE"
+                        android:text="NEXT DATA RELEASES  ·  PULSE"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="10sp"
                         android:letterSpacing="0.06"
                         android:layout_marginBottom="6dp" />
 
                     <TextView
+                        android:id="@+id/tvDataSources"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:textColor="@color/colorText"
                         android:textSize="10sp"
                         android:fontFamily="monospace"
                         android:lineSpacingMultiplier="1.55"
-                        android:text="EIP — Essentials Pressure (40%)\n  CUSR0000SEHA    Shelter CPI (YoY)\n  CPIUFDSL        Food at Home CPI (YoY)\n  CUSR0000SETB01  Gasoline CPI (YoY)\n  APU0000708111   Eggs avg price (YoY)\n  APU0000709112   Chicken avg price (YoY)\n  APU0000710411   Milk avg price (YoY)\n  CES0500000003   Avg Hourly Earnings ← wage anchor\n\nASI — Affordability Squeeze (35%)\n  DRCCLACBS       CC Delinquency Rate (wt 30%)\n  REVOLSL         CC Revolving Balances YoY (25%)\n  PSAVERT         Personal Savings Rate (25%)\n  CORCCACBS       CC Charge-Off Rate (20%)\n\nFSS — Forward Stress Signal (25%)\n  UMCSENT         Consumer Sentiment — UMich (40%)\n  MRTSSM4451USS   Food &amp; Bev Retail YoY (30%)\n  DSPIC96         Real Disp. Income YoY (30%)" />
+                        android:text="Loading…" />
 
                 </LinearLayout>
 
