@@ -67,10 +67,14 @@ class FedCompareFragment : Fragment() {
                             binding.tvInflationScore.setTextColor(inflationColor(isi.regime))
                             binding.tvInflationUpdated.text =
                                 "Updated ${isi.updatedAt}  ·  ${isi.lastDataMonth}"
+                            updateInflationRecent(isi.points.takeLast(4).joinToString("   ") {
+                                "${it.monthLabel} ${"%+.2f".format(it.value)}"
+                            })
                         } else {
                             binding.tvInflationScore.text = "No data — tap ↻"
                             binding.tvInflationScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvInflationUpdated.text = ""
+                            binding.tvInflationRecent.visibility = View.GONE
                         }
                     }
                 }
@@ -101,10 +105,14 @@ class FedCompareFragment : Fragment() {
                             binding.tvLaborScore.setTextColor(laborColor(lsi.regime))
                             binding.tvLaborUpdated.text =
                                 "Updated ${lsi.updatedAt}  ·  ${lsi.lastDataMonth}"
+                            updateLaborRecent(lsi.points.takeLast(4).joinToString("   ") {
+                                "${it.monthLabel} ${"%+.2f".format(it.value)}"
+                            })
                         } else {
                             binding.tvLaborScore.text = "No data — tap ↻"
                             binding.tvLaborScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvLaborUpdated.text = ""
+                            binding.tvLaborRecent.visibility = View.GONE
                         }
                     }
                 }
@@ -127,6 +135,18 @@ class FedCompareFragment : Fragment() {
                 }
             }
         }
+    }
+
+    // ── Recent readings helpers ───────────────────────────────────────────────
+
+    private fun updateInflationRecent(text: String) {
+        binding.tvInflationRecent.text = text
+        binding.tvInflationRecent.visibility = View.VISIBLE
+    }
+
+    private fun updateLaborRecent(text: String) {
+        binding.tvLaborRecent.text = text
+        binding.tvLaborRecent.visibility = View.VISIBLE
     }
 
     // ── Score line ─────────────────────────────────────────────────────────────

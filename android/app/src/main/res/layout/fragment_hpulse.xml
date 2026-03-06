@@ -236,6 +236,17 @@
                 android:layout_height="190dp"
                 android:layout_marginBottom="4dp" />
 
+            <!-- Recent monthly readings mini-table -->
+            <TextView
+                android:id="@+id/tvRecentReadings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorText"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="2dp"
+                android:visibility="gone" />
+
             <!-- Timestamp -->
             <TextView
                 android:id="@+id/tvUpdated"

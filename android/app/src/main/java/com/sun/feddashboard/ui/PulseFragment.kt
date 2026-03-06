@@ -77,12 +77,19 @@ class PulseFragment : Fragment() {
                             binding.chart.regularPoints = result.points
                             binding.chart.regularRegime = result.regime
                             binding.chart.leadingPoints = emptyList()
+
+                            // Recent monthly readings
+                            val last4 = result.points.takeLast(4)
+                            binding.tvRecentReadings.text =
+                                last4.joinToString("   ") { "${it.monthLabel} ${"%+.2f".format(it.value)}" }
+                            binding.tvRecentReadings.visibility = View.VISIBLE
                         } else {
                             binding.tvScore.text = "No data — tap ↻"
                             binding.tvScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvRegimeDesc.text = ""
                             binding.tvUpdated.text = ""
                             binding.layoutSubScores.visibility = View.GONE
+                            binding.tvRecentReadings.visibility = View.GONE
                         }
                     }
                 }

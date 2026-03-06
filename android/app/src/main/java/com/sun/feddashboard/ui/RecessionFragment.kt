@@ -100,11 +100,19 @@ class RecessionFragment : Fragment() {
                             binding.tvRegimeDesc.text = regimeDesc(rri.regime)
                             binding.tvRegimeDesc.setTextColor(regimeColor(rri.regime))
                             binding.tvUpdated.text = "Updated ${rri.updatedAt}  ·  ${rri.lastDataMonth}"
+
+                            // Recent monthly readings (note: yield/spread components update daily)
+                            val last4 = rri.points.takeLast(4)
+                            binding.tvRecentReadings.text =
+                                last4.joinToString("   ") { "${it.monthLabel} ${"%+.2f".format(it.value)}" } +
+                                "\n↺ yield curve & HY spread components refresh daily"
+                            binding.tvRecentReadings.visibility = View.VISIBLE
                         } else {
                             binding.tvScore.text = "No data — tap ↻"
                             binding.tvScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvRegimeDesc.text = ""
                             binding.tvUpdated.text = ""
+                            binding.tvRecentReadings.visibility = View.GONE
                         }
                         updateCountdown()
                     }

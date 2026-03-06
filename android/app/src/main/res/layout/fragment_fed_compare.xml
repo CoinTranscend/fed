@@ -103,6 +103,16 @@
                 android:layout_marginBottom="3dp" />
 
             <TextView
+                android:id="@+id/tvInflationRecent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorText"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="2dp"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/tvInflationUpdated"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -181,6 +191,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="170dp"
                 android:layout_marginBottom="3dp" />
+
+            <TextView
+                android:id="@+id/tvLaborRecent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorText"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="2dp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/tvLaborUpdated"

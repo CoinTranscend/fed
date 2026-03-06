@@ -82,12 +82,19 @@ class HPulseFragment : Fragment() {
 
                             // Chart
                             binding.hpulseChart.points = result.points
+
+                            // Recent monthly readings
+                            val last4 = result.points.takeLast(4)
+                            binding.tvRecentReadings.text =
+                                last4.joinToString("   ") { "${it.monthLabel} ${"%.1f".format(it.composite)}" }
+                            binding.tvRecentReadings.visibility = View.VISIBLE
                         } else {
                             binding.tvCompositeScore.text = "No data — tap ↻"
                             binding.tvCompositeScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvBandDesc.text = ""
                             binding.tvUpdated.text = ""
                             binding.layoutTierScores.visibility = View.GONE
+                            binding.tvRecentReadings.visibility = View.GONE
                         }
                     }
                 }
