@@ -5,12 +5,22 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
- * Maps FRED series IDs to their source economic release and computes the next
- * scheduled release date based on standard BLS / BEA / Fed calendar rules.
+ * Maps FRED series IDs to their source economic release and computes:
+ *   (a) the latest data vintage currently available, and
+ *   (b) the next scheduled release date
+ * using standard BLS / BEA / Fed calendar rules — no API calls required.
+ *
+ * Data-lag rules per release type:
+ *   CPI, PPI, Employment Situation, PCE, Building Permits,
+ *   Advance Retail, M2, Commodities → 1-month lag (release month N = data month N-1)
+ *   JOLTS, Consumer Credit G.19     → 2-month lag (release month N = data month N-2)
+ *   UMich Sentiment                 → 0-month lag (released for the current month)
+ *   Jobless Claims                  → ~5-day lag (week ending prior Saturday)
+ *   Treasury / ICE daily series     → effectively 0 (daily update)
+ *   Fed Charge-off / Delinquency    → quarterly, ~62 days after quarter end
  *
  * Usage:
- *   val text = ReleaseSchedule.buildReleasesText(ReleaseSchedule.pulseSeriesIds())
- *   binding.tvDataSources.text = text
+ *   binding.tvDataSources.text = ReleaseSchedule.buildReleasesText(ReleaseSchedule.pulseSeriesIds())
  */
 object ReleaseSchedule {
 
@@ -35,7 +45,6 @@ object ReleaseSchedule {
     // ── Series → Release mapping ──────────────────────────────────────────────
 
     private val SERIES_RELEASE: Map<String, Release> = mapOf(
-        // CPI family (BLS CPI release, ~mid-month following reference month)
         "CPILFESL"              to Release.CPI,
         "CPIUFDSL"              to Release.CPI,
         "CPIAUCSL"              to Release.CPI,
@@ -46,12 +55,10 @@ object ReleaseSchedule {
         "APU0000708111"         to Release.CPI,
         "APU0000709112"         to Release.CPI,
         "APU0000710411"         to Release.CPI,
-        "CORESTICKM159SFRBATL"  to Release.CPI,   // Atlanta Fed Sticky CPI (same day)
-        "FLEXCPIM159SFRBATL"    to Release.CPI,   // Atlanta Fed Flexible CPI (same day)
-        // PPI (BLS, ~Thursday after CPI Wednesday)
+        "CORESTICKM159SFRBATL"  to Release.CPI,
+        "FLEXCPIM159SFRBATL"    to Release.CPI,
         "PPIFIS"                to Release.PPI,
         "PPIACO"                to Release.PPI,
-        // Employment Situation (BLS, first Friday of following month)
         "PAYEMS"                to Release.EMPLOYMENT_SITUATION,
         "UNRATE"                to Release.EMPLOYMENT_SITUATION,
         "CIVPART"               to Release.EMPLOYMENT_SITUATION,
@@ -59,42 +66,30 @@ object ReleaseSchedule {
         "MANEMP"                to Release.EMPLOYMENT_SITUATION,
         "AWHMAN"                to Release.EMPLOYMENT_SITUATION,
         "TEMPHELPS"             to Release.EMPLOYMENT_SITUATION,
-        // JOLTS (BLS, 2nd Tuesday ~5-6 weeks after reference month)
         "JTSJOL"                to Release.JOLTS,
         "JTSQUR"                to Release.JOLTS,
         "JTSLDL"                to Release.JOLTS,
         "JTSQUL"                to Release.JOLTS,
-        // Jobless Claims (BLS, every Thursday at 8:30 AM ET)
         "ICSA"                  to Release.JOBLESS_CLAIMS,
         "CCSA"                  to Release.JOBLESS_CLAIMS,
-        // PCE / Personal Income (BEA, last Friday of following month)
         "PCEPILFE"              to Release.PCE_BEA,
         "PCETRIM12M159SFRBDAL"  to Release.PCE_BEA,
         "PSAVERT"               to Release.PCE_BEA,
         "DSPIC96"               to Release.PCE_BEA,
-        // UMich Consumer Sentiment (preliminary: 2nd Friday; final: last Friday)
         "UMCSENT"               to Release.UMICH_SENTIMENT,
         "MICH"                  to Release.UMICH_SENTIMENT,
-        // Consumer Credit G.19 (Fed, ~5th business day of following month)
         "REVOLSL"               to Release.CONSUMER_CREDIT,
-        // Treasury market data (FRED updates daily, no lag)
         "T10Y2Y"                to Release.TREASURY_DAILY,
         "T10Y3M"                to Release.TREASURY_DAILY,
         "T5YIE"                 to Release.TREASURY_DAILY,
         "T10YIE"                to Release.TREASURY_DAILY,
         "T5YIFR"                to Release.TREASURY_DAILY,
-        // ICE BofA High-Yield credit spreads (FRED updates daily)
         "BAMLH0A0HYM2"          to Release.ICE_DAILY,
-        // New Residential Construction / Building Permits (Census, ~3rd Thursday)
         "PERMIT"                to Release.BUILDING_PERMITS,
-        // Advance Retail Sales (Census, ~2nd Wednesday of following month)
         "MRTSSM4451USS"         to Release.ADVANCE_RETAIL,
-        // M2 Money Stock H.6 (Fed, released every ~4 weeks on Thursdays)
         "M2SL"                  to Release.M2_MONEY,
-        // Commodity prices: monthly averages (IMF / LBMA, ~5th of following month)
         "PCOPPUSDM"             to Release.COMMODITY_MONTHLY,
         "GOLDAMGBD228NLBM"      to Release.COMMODITY_MONTHLY,
-        // Charge-off & Delinquency Rates (Fed, quarterly ~62 days after quarter end)
         "DRCCLACBS"             to Release.FR_DELINQUENCY,
         "CORCCACBS"             to Release.FR_DELINQUENCY,
     )
@@ -119,10 +114,8 @@ object ReleaseSchedule {
     )
 
     fun isiLsiSeriesIds() = listOf(
-        // ISI (Inflation Strength Index)
         "CPILFESL", "PCEPILFE", "PCETRIM12M159SFRBDAL", "CORESTICKM159SFRBATL",
         "PPIFIS", "PPIACO", "T5YIE", "T10YIE", "CUSR0000SAH1", "MICH",
-        // LSI (Labor Strength Index)
         "PAYEMS", "UNRATE", "CIVPART", "ICSA", "CCSA", "JTSJOL", "JTSQUR",
         "CES0500000003", "MANEMP",
     )
@@ -130,117 +123,199 @@ object ReleaseSchedule {
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Returns a formatted monospace text block listing the next release dates
-     * for all unique releases covering [seriesIds], sorted by next date.
-     * Format: "%-22s  %s" → e.g. "CPI (BLS)               Mar 11"
+     * Builds a monospace text block sorted by next release date.
+     * Three columns per row:
+     *   %-22s  %-9s  → %s
+     *   [source report]  [last data vintage]  [next release date]
+     *
+     * Example (today = March 6, 2026 — Employment Situation released today):
+     *   Employment Situation    Feb 2026  → Apr 3
+     *   JOLTS (BLS)             Jan 2026  → Mar 10
+     *   CPI (BLS)               Jan 2026  → Mar 11
+     *   Jobless Claims          wk Mar 1  → Thu Mar 12
+     *   UMich Sentiment         Feb 2026  → Mar 13
+     *   Treasury Yields         current   → daily
      */
     fun buildReleasesText(seriesIds: List<String>, today: LocalDate = LocalDate.now()): String {
-        val seen  = mutableSetOf<Release>()
-        val pairs = mutableListOf<Pair<Release, LocalDate>>()
+        val seen = mutableSetOf<Release>()
+        data class Row(val rel: Release, val latestLbl: String, val nextDt: LocalDate, val nextLbl: String)
+        val rows = mutableListOf<Row>()
+
         for (id in seriesIds) {
             val rel = SERIES_RELEASE[id] ?: continue
-            if (seen.add(rel)) pairs.add(rel to nextDate(rel, today))
+            if (!seen.add(rel)) continue
+            val nextDt  = nextDate(rel, today)
+            rows.add(Row(rel, latestDataLabel(rel, today), nextDt, formatNextDate(rel, nextDt)))
         }
-        pairs.sortBy { it.second }
-        return pairs.joinToString("\n") { (rel, date) ->
-            "%-22s  %s".format(rel.displayName.take(22), formatDate(rel, date))
+        rows.sortBy { it.nextDt }
+        return rows.joinToString("\n") { r ->
+            "%-22s  %-9s  → %s".format(r.rel.displayName.take(22), r.latestLbl, r.nextLbl)
         }
     }
 
-    // ── Date formatting ───────────────────────────────────────────────────────
+    // ── Latest data vintage label ─────────────────────────────────────────────
 
-    private fun formatDate(release: Release, date: LocalDate): String = when (release) {
+    /**
+     * Returns a short label for the most recent data currently available,
+     * accounting for each release's publication lag.
+     *
+     * Examples: "Jan 2026", "Feb 2026", "wk Mar 1", "Q4 2025", "current"
+     */
+    fun latestDataLabel(release: Release, today: LocalDate): String = when (release) {
+
         Release.TREASURY_DAILY,
-        Release.ICE_DAILY      -> "daily (current)"
-        Release.JOBLESS_CLAIMS -> "Thu ${date.format(MMM_D)}"
-        Release.FR_DELINQUENCY -> date.format(MMM_YYYY)
-        else                   -> date.format(MMM_D)
+        Release.ICE_DAILY ->
+            // Updated daily — data is effectively current
+            "current"
+
+        Release.JOBLESS_CLAIMS -> {
+            // Released every Thursday; data covers the week ending the prior Saturday (~5 days back).
+            // If Thursday has not yet occurred this week, use last Thursday.
+            val lastThursday = mostRecentDow(today, DayOfWeek.THURSDAY)
+            val weekEnding   = lastThursday.minusDays(5)  // prior Saturday
+            "wk ${weekEnding.format(FMT_MMM_D)}"
+        }
+
+        Release.FR_DELINQUENCY -> {
+            // Quarterly, ~62-day lag.  Find the most recently published quarter.
+            quarterReleases(today)
+                .filter { (releaseDate, _) -> releaseDate <= today }
+                .maxByOrNull { it.first }?.second ?: "Q? ????"
+        }
+
+        Release.UMICH_SENTIMENT -> {
+            // 0-month lag: published data is for the same calendar month as the release.
+            // Preliminary mid-month, final end-of-month — use whichever last occurred.
+            val lastRel = latestMonthlyReleaseDate(release, today)
+            lastRel.format(FMT_MON_YYYY)
+        }
+
+        Release.JOLTS,
+        Release.CONSUMER_CREDIT -> {
+            // 2-month lag: e.g., March release → January data.
+            val lastRel = latestMonthlyReleaseDate(release, today)
+            lastRel.minusMonths(2).format(FMT_MON_YYYY)
+        }
+
+        else -> {
+            // Standard 1-month lag: e.g., March CPI release → February data.
+            // Critically: if the release happened *today* (e.g., Employment Situation on March 6),
+            // we correctly show the just-released month (Feb 2026), not the prior one.
+            val lastRel = latestMonthlyReleaseDate(release, today)
+            lastRel.minusMonths(1).format(FMT_MON_YYYY)
+        }
     }
 
-    // ── Next-date computation ─────────────────────────────────────────────────
+    // ── Next release date ─────────────────────────────────────────────────────
 
+    /**
+     * Returns the next scheduled release date strictly after [today].
+     * If a release occurred *today* (e.g., Employment Situation on its first-Friday),
+     * this returns the following month's release, not today — so users always see
+     * an upcoming date, not a "just happened" date.
+     */
     fun nextDate(release: Release, today: LocalDate): LocalDate = when (release) {
-        // BLS CPI: first Wednesday on or after the 10th of each month
-        Release.CPI ->
-            nextMonthly(today) { y, m -> firstDowOnOrAfter(y, m, 10, DayOfWeek.WEDNESDAY) }
 
-        // BLS PPI: first Thursday on or after the 11th (~1-2 days after CPI)
-        Release.PPI ->
-            nextMonthly(today) { y, m -> firstDowOnOrAfter(y, m, 11, DayOfWeek.THURSDAY) }
-
-        // BLS Employment Situation: first Friday of the following month
-        Release.EMPLOYMENT_SITUATION ->
-            nextMonthly(today) { y, m -> nthDow(y, m, DayOfWeek.FRIDAY, 1) }
-
-        // BLS JOLTS: 2nd Tuesday of each month (~5-6 week lag from reference month)
-        Release.JOLTS ->
-            nextMonthly(today) { y, m -> nthDow(y, m, DayOfWeek.TUESDAY, 2) }
-
-        // BLS Initial/Continuing Claims: every Thursday (weekly, show next Thursday)
         Release.JOBLESS_CLAIMS ->
             nextStrictDow(today, DayOfWeek.THURSDAY)
 
-        // BEA PCE / Personal Income: last Friday of each month
-        Release.PCE_BEA ->
-            nextMonthly(today) { y, m -> lastDow(y, m, DayOfWeek.FRIDAY) }
-
-        // UMich Sentiment: preliminary = 2nd Friday of month
-        Release.UMICH_SENTIMENT ->
-            nextMonthly(today) { y, m -> nthDow(y, m, DayOfWeek.FRIDAY, 2) }
-
-        // Fed G.19 Consumer Credit: 5th business day of each month
-        Release.CONSUMER_CREDIT ->
-            nextMonthly(today) { y, m -> nthBizDay(y, m, 5) }
-
-        // Daily series (Treasury/ICE): always current, next business day shown
         Release.TREASURY_DAILY,
         Release.ICE_DAILY ->
             nextBizDay(today)
 
-        // Census Building Permits: 3rd Thursday of each month (~18th-21st)
-        Release.BUILDING_PERMITS ->
-            nextMonthly(today) { y, m -> nthDow(y, m, DayOfWeek.THURSDAY, 3) }
-
-        // Census Advance Retail Sales: first Wednesday on or after the 12th
-        Release.ADVANCE_RETAIL ->
-            nextMonthly(today) { y, m -> firstDowOnOrAfter(y, m, 12, DayOfWeek.WEDNESDAY) }
-
-        // Fed H.6 M2: ~2nd Thursday of each month
-        Release.M2_MONEY ->
-            nextMonthly(today) { y, m -> nthDow(y, m, DayOfWeek.THURSDAY, 2) }
-
-        // IMF/LBMA commodity prices: ~5th of each month (skip weekend)
-        Release.COMMODITY_MONTHLY ->
-            nextMonthly(today) { y, m ->
-                var d = LocalDate.of(y, m, 5)
-                if (d.dayOfWeek == DayOfWeek.SATURDAY) d = d.plusDays(2)
-                else if (d.dayOfWeek == DayOfWeek.SUNDAY) d = d.plusDays(1)
-                d
-            }
-
-        // Fed Charge-off/Delinquency: quarterly, ~62 days after quarter end
         Release.FR_DELINQUENCY ->
-            nextQuarterly(today)
+            quarterReleases(today).map { it.first }.filter { it > today }.minOrNull()
+                ?: today.plusMonths(3)
+
+        else -> {
+            // Monthly release: use > today (strict) so a release *today* returns next month.
+            val c = candidateDate(release, today.year, today.monthValue)
+            if (c != null && c > today) c else {
+                val n = today.plusMonths(1)
+                candidateDate(release, n.year, n.monthValue) ?: n
+            }
+        }
+    }
+
+    // ── Most recent monthly release on or before today ────────────────────────
+
+    private fun latestMonthlyReleaseDate(release: Release, today: LocalDate): LocalDate {
+        val c = candidateDate(release, today.year, today.monthValue)
+        // <= today means the release already happened (including today)
+        if (c != null && c <= today) return c
+        val p = today.minusMonths(1)
+        return candidateDate(release, p.year, p.monthValue) ?: p
+    }
+
+    // ── Candidate release date for a given calendar month ────────────────────
+
+    private fun candidateDate(release: Release, y: Int, m: Int): LocalDate? = when (release) {
+        Release.CPI ->
+            firstDowOnOrAfter(y, m, 10, DayOfWeek.WEDNESDAY)
+        Release.PPI ->
+            firstDowOnOrAfter(y, m, 11, DayOfWeek.THURSDAY)
+        Release.EMPLOYMENT_SITUATION ->
+            nthDow(y, m, DayOfWeek.FRIDAY, 1)
+        Release.JOLTS ->
+            nthDow(y, m, DayOfWeek.TUESDAY, 2)
+        Release.PCE_BEA ->
+            lastDow(y, m, DayOfWeek.FRIDAY)
+        Release.UMICH_SENTIMENT ->
+            nthDow(y, m, DayOfWeek.FRIDAY, 2)
+        Release.CONSUMER_CREDIT ->
+            nthBizDay(y, m, 5)
+        Release.BUILDING_PERMITS ->
+            nthDow(y, m, DayOfWeek.THURSDAY, 3)
+        Release.ADVANCE_RETAIL ->
+            firstDowOnOrAfter(y, m, 12, DayOfWeek.WEDNESDAY)
+        Release.M2_MONEY ->
+            nthDow(y, m, DayOfWeek.THURSDAY, 2)
+        Release.COMMODITY_MONTHLY -> {
+            var d = LocalDate.of(y, m, 5)
+            if (d.dayOfWeek == DayOfWeek.SATURDAY) d = d.plusDays(2)
+            else if (d.dayOfWeek == DayOfWeek.SUNDAY) d = d.plusDays(1)
+            d
+        }
+        else -> null  // non-monthly — handled separately in nextDate / latestDataLabel
+    }
+
+    // ── Quarterly release schedule ────────────────────────────────────────────
+
+    private fun quarterReleases(today: LocalDate): List<Pair<LocalDate, String>> {
+        val result = mutableListOf<Pair<LocalDate, String>>()
+        for (yr in (today.year - 2)..(today.year + 2)) {
+            // Q4 of yr:  data Oct–Dec yr  → released ~Mar 3 of (yr+1)  [Dec 31 + 62 days]
+            result.add(LocalDate.of(yr + 1, 1, 1).plusDays(61) to "Q4 $yr")
+            // Q1 of yr:  data Jan–Mar yr  → released ~Jun 1 of yr       [Mar 31 + 62 days]
+            result.add(LocalDate.of(yr, 3, 31).plusDays(62) to "Q1 $yr")
+            // Q2 of yr:  data Apr–Jun yr  → released ~Sep 1 of yr       [Jun 30 + 62 days]
+            result.add(LocalDate.of(yr, 6, 30).plusDays(62) to "Q2 $yr")
+            // Q3 of yr:  data Jul–Sep yr  → released ~Dec 1 of yr       [Sep 30 + 62 days]
+            result.add(LocalDate.of(yr, 9, 30).plusDays(62) to "Q3 $yr")
+        }
+        return result.sortedBy { it.first }
+    }
+
+    // ── Format helpers ────────────────────────────────────────────────────────
+
+    private fun formatNextDate(release: Release, date: LocalDate): String = when (release) {
+        Release.TREASURY_DAILY,
+        Release.ICE_DAILY      -> "daily"
+        Release.JOBLESS_CLAIMS -> "Thu ${date.format(FMT_MMM_D)}"
+        Release.FR_DELINQUENCY -> date.format(FMT_MON_YYYY)
+        else                   -> date.format(FMT_MMM_D)
     }
 
     // ── Calendar helpers ─────────────────────────────────────────────────────
 
-    /** Run [fn] for current month; if result is before today, run for next month. */
-    private fun nextMonthly(today: LocalDate, fn: (Int, Int) -> LocalDate): LocalDate {
-        val c = fn(today.year, today.monthValue)
-        if (c >= today) return c
-        val n = today.plusMonths(1)
-        return fn(n.year, n.monthValue)
-    }
-
-    /** First occurrence of [dow] on or after the [minDay]th of the given month. */
+    /** First [dow] on or after the [minDay]th of the given month. */
     private fun firstDowOnOrAfter(y: Int, m: Int, minDay: Int, dow: DayOfWeek): LocalDate {
         var d = LocalDate.of(y, m, minDay)
         while (d.dayOfWeek != dow) d = d.plusDays(1)
         return d
     }
 
-    /** The [n]th occurrence (1-based) of [dow] in the given month. */
+    /** The [n]th (1-based) occurrence of [dow] in the given month. */
     private fun nthDow(y: Int, m: Int, dow: DayOfWeek, n: Int): LocalDate {
         var d = LocalDate.of(y, m, 1)
         while (d.dayOfWeek != dow) d = d.plusDays(1)
@@ -254,7 +329,7 @@ object ReleaseSchedule {
         return d
     }
 
-    /** The [n]th business day (Mon–Fri, 1-based) in the given month. */
+    /** The [n]th (1-based) business day (Mon–Fri) in the given month. */
     private fun nthBizDay(y: Int, m: Int, n: Int): LocalDate {
         var d = LocalDate.of(y, m, 1)
         var count = 0
@@ -267,37 +342,27 @@ object ReleaseSchedule {
         }
     }
 
-    /** Strictly next occurrence of [dow] after today (not including today). */
+    /** Most recent occurrence of [dow] on or before [today] (returns today if today matches). */
+    private fun mostRecentDow(today: LocalDate, dow: DayOfWeek): LocalDate {
+        var d = today
+        while (d.dayOfWeek != dow) d = d.minusDays(1)
+        return d
+    }
+
+    /** Strictly next occurrence of [dow] after [today]. */
     private fun nextStrictDow(today: LocalDate, dow: DayOfWeek): LocalDate {
         var d = today.plusDays(1)
         while (d.dayOfWeek != dow) d = d.plusDays(1)
         return d
     }
 
-    /** Strictly next business day after today. */
+    /** Strictly next business day after [today]. */
     private fun nextBizDay(today: LocalDate): LocalDate {
         var d = today.plusDays(1)
         while (d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY) d = d.plusDays(1)
         return d
     }
 
-    /** Next quarterly Fed release: ~62 days after a quarter end (Mar/Jun/Sep/Dec). */
-    private fun nextQuarterly(today: LocalDate): LocalDate {
-        val ends = buildList {
-            for (yr in (today.year - 1)..(today.year + 1)) {
-                add(LocalDate.of(yr,  3, 31))
-                add(LocalDate.of(yr,  6, 30))
-                add(LocalDate.of(yr,  9, 30))
-                add(LocalDate.of(yr, 12, 31))
-            }
-        }.sorted()
-        for (qEnd in ends) {
-            val rel = qEnd.plusDays(62)
-            if (rel >= today) return rel
-        }
-        return today.plusMonths(3)
-    }
-
-    private val MMM_D    = DateTimeFormatter.ofPattern("MMM d")
-    private val MMM_YYYY = DateTimeFormatter.ofPattern("MMM yyyy")
+    private val FMT_MMM_D    = DateTimeFormatter.ofPattern("MMM d")
+    private val FMT_MON_YYYY = DateTimeFormatter.ofPattern("MMM yyyy")
 }

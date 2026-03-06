@@ -219,7 +219,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="NEXT DATA RELEASES  ·  ISI / LSI"
+                        android:text="DATA RELEASES  ·  ISI/LSI  (last data  →  next due)"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="10sp"
                         android:letterSpacing="0.06"
