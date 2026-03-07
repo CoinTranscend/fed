@@ -116,6 +116,54 @@ object InflationLeadingEngine {
         )
     }
 
+    // ── 30-year history ───────────────────────────────────────────────────────
+
+    fun computeHistory(fredApiKey: String, yearsBack: Int = 32): List<Pair<String, Float>>? {
+        if (fredApiKey.isBlank()) return null
+        val startDate = LocalDate.now().minusYears(yearsBack.toLong())
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val rawSeries = mutableMapOf<String, List<Pair<String, Double?>>>()
+        for (spec in SERIES) {
+            val data = try {
+                FredClient.fetchSeries(spec.id, fredApiKey, startDate)
+            } catch (_: Exception) { emptyList() }
+            if (data.isNotEmpty()) rawSeries[spec.id] = data
+        }
+        if (rawSeries.isEmpty()) return null
+
+        val allMonths = rawSeries.values
+            .flatMap { s -> s.map { it.first } }
+            .toSortedSet().toList()
+
+        val weightedZScores = mutableMapOf<String, Map<String, Double?>>()
+        for (spec in SERIES) {
+            val raw = rawSeries[spec.id] ?: continue
+            val rawMap    = raw.toMap()
+            val filled    = EngineBase.forwardFill(allMonths, rawMap)
+            val processed = if (spec.yoy) EngineBase.applyYoY(allMonths, filled) else filled
+            val zScores   = EngineBase.rollingZScore(allMonths, processed)
+            weightedZScores[spec.id] = zScores.mapValues { (_, v) -> v?.let { it * spec.weight } }
+        }
+
+        val weightBySeries = SERIES.associate { it.id to it.weight }
+        val composite = mutableMapOf<String, Double>()
+        for (month in allMonths) {
+            var numerator = 0.0; var denominator = 0.0
+            for ((sid, wzMap) in weightedZScores) {
+                val wz = wzMap[month]
+                if (wz != null && !wz.isNaN()) {
+                    numerator   += wz
+                    denominator += weightBySeries[sid] ?: 0.0
+                }
+            }
+            if (denominator > 0.0) composite[month] = numerator / denominator
+        }
+        if (composite.isEmpty()) return null
+
+        return composite.keys.sorted().map { m -> m to composite[m]!!.toFloat() }
+    }
+
     private fun classifyRegime(score: Double) = when {
         score >= 0.5  -> "ELEVATED"
         score >= 0.0  -> "RISING"

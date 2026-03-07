@@ -18,6 +18,7 @@ import com.sun.feddashboard.domain.InflationLeadingEngine
 import com.sun.feddashboard.domain.LaborLeadingEngine
 import com.sun.feddashboard.domain.PulseEngine
 import com.sun.feddashboard.domain.RecessionEngine
+import com.sun.feddashboard.ui.ChartExporter
 import com.sun.feddashboard.model.GeminiHPulseStatus
 import com.sun.feddashboard.model.GeminiPulseStatus
 import com.sun.feddashboard.model.HPulseNarrativeState
@@ -234,6 +235,76 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _message.emit("Network error: ${e.message}")
             } finally {
                 _hPulseLoading.value = false
+            }
+        }
+    }
+
+    // ── 30-Year export ────────────────────────────────────────────────────────
+
+    private val _exportLoading = MutableStateFlow(false)
+    val exportLoading = _exportLoading.asStateFlow()
+
+    fun exportAll30Year() {
+        val key = _fredKey.value
+        if (key.isBlank()) {
+            viewModelScope.launch { _message.emit("Enter your FRED API key in Settings first.") }
+            return
+        }
+        if (_exportLoading.value) return
+        val ctx = getApplication<Application>()
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _exportLoading.value = true
+            var ok = 0; var fail = 0
+            fun track(path: String?) { if (path != null) ok++ else fail++ }
+            try {
+                _message.emit("Fetching 30-year data for all 7 indices… (~60–90s)")
+
+                val fedHistory    = runCatching { FedEngine.computeHistory(key) }.getOrNull()
+                val liimsiHistory = runCatching { InflationLeadingEngine.computeHistory(key) }.getOrNull()
+                val llmsiHistory  = runCatching { LaborLeadingEngine.computeHistory(key) }.getOrNull()
+                val rriHistory    = runCatching { RecessionEngine.computeHistory(key) }.getOrNull()
+                val pulseHistory  = runCatching { PulseEngine.computeHistory(key) }.getOrNull()
+                val hpulseHistory = runCatching { HPulseEngine.computeHistory(key) }.getOrNull()
+
+                val isiHistory = fedHistory?.isi
+                val lsiHistory = fedHistory?.lsi
+
+                isiHistory?.let    { track(ChartExporter.exportIsiHistory(ctx, it,
+                    _isiResult.value?.regime ?: "ANCHORED")) }
+                lsiHistory?.let    { track(ChartExporter.exportLsiHistory(ctx, it,
+                    _lsiResult.value?.regime ?: "MODERATE")) }
+                liimsiHistory?.let { track(ChartExporter.exportLiimsiHistory(ctx, it,
+                    _liimsiResult.value?.regime ?: "ANCHORED")) }
+                llmsiHistory?.let  { track(ChartExporter.exportLlmsiHistory(ctx, it,
+                    _llmsiResult.value?.regime ?: "MODERATE")) }
+                rriHistory?.let    { track(ChartExporter.exportLongHistory(ctx,
+                    title    = "Recession Risk Index (RRI)  —  30-Year History with NBER Recessions",
+                    history  = it,
+                    regime   = _rriResult.value?.regime ?: "STABLE",
+                    fileName = "fed_rri_30yr.png")) }
+                pulseHistory?.let  { track(ChartExporter.exportPulseHistory(ctx, it,
+                    _pulseResult.value?.regime ?: "STABLE")) }
+                hpulseHistory?.let { track(ChartExporter.exportHPulseHistory(ctx, it,
+                    _hPulseResult.value?.band ?: "WARMING")) }
+
+                track(ChartExporter.exportAllHistoryCsv(
+                    context = ctx,
+                    isi     = isiHistory,
+                    lsi     = lsiHistory,
+                    liimsi  = liimsiHistory,
+                    llmsi   = llmsiHistory,
+                    rri     = rriHistory,
+                    pulse   = pulseHistory,
+                    hpulse  = hpulseHistory,
+                ))
+
+                _message.emit("Export done: $ok file${if (ok != 1) "s" else ""} saved to Downloads" +
+                    if (fail > 0) "  ($fail failed)" else "")
+            } catch (e: Exception) {
+                _message.emit("Export error: ${e.message}")
+            } finally {
+                _exportLoading.value = false
             }
         }
     }

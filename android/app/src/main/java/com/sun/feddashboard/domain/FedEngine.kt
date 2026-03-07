@@ -145,6 +145,61 @@ object FedEngine {
         )
     }
 
+    // ── 30-year history ───────────────────────────────────────────────────────
+
+    data class FedHistory(
+        val isi: List<Pair<String, Float>>?,
+        val lsi: List<Pair<String, Float>>?,
+    )
+
+    fun computeHistory(fredApiKey: String, yearsBack: Int = 32): FedHistory = FedHistory(
+        isi = computeIndexHistory(ISI_SERIES, fredApiKey, yearsBack),
+        lsi = computeIndexHistory(LSI_SERIES, fredApiKey, yearsBack),
+    )
+
+    private fun computeIndexHistory(
+        seriesList: List<SeriesSpec>,
+        fredApiKey: String,
+        yearsBack: Int,
+    ): List<Pair<String, Float>>? {
+        if (fredApiKey.isBlank()) return null
+        val startDate = LocalDate.now().minusYears(yearsBack.toLong())
+            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        val rawSeries = mutableMapOf<String, List<Pair<String, Double?>>>()
+        for (spec in seriesList) {
+            val data = try {
+                FredClient.fetchSeries(spec.id, fredApiKey, startDate)
+            } catch (_: Exception) { emptyList() }
+            if (data.isNotEmpty()) rawSeries[spec.id] = data
+        }
+        if (rawSeries.isEmpty()) return null
+
+        val allMonths = rawSeries.values
+            .flatMap { s -> s.map { it.first } }
+            .toSortedSet().toList()
+
+        val signedZScores = mutableMapOf<String, Map<String, Double?>>()
+        for (spec in seriesList) {
+            val raw = rawSeries[spec.id] ?: continue
+            val rawMap    = raw.toMap()
+            val filled    = EngineBase.forwardFill(allMonths, rawMap)
+            val processed = if (spec.yoy) EngineBase.applyYoY(allMonths, filled) else filled
+            val zScores   = EngineBase.rollingZScore(allMonths, processed)
+            val sign = if (spec.invert) -1.0 else 1.0
+            signedZScores[spec.id] = zScores.mapValues { (_, v) -> v?.let { it * sign } }
+        }
+
+        val composite = mutableMapOf<String, Double>()
+        for (month in allMonths) {
+            val vals = signedZScores.values.mapNotNull { it[month] }.filter { !it.isNaN() }
+            if (vals.isNotEmpty()) composite[month] = vals.average()
+        }
+        if (composite.isEmpty()) return null
+
+        return composite.keys.sorted().map { m -> m to composite[m]!!.toFloat() }
+    }
+
     private fun classifyInflation(score: Double) = when {
         score >= 0.5  -> "ELEVATED"
         score >= 0.0  -> "RISING"

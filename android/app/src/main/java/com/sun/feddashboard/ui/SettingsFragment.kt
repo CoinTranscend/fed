@@ -6,9 +6,13 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
 import com.sun.feddashboard.databinding.FragmentSettingsBinding
+import kotlinx.coroutines.launch
 
 class SettingsFragment : Fragment() {
 
@@ -48,6 +52,22 @@ class SettingsFragment : Fragment() {
 
         binding.tvFredHint.text = "Free key at fred.stlouisfed.org — used for all FRED economic data."
         binding.tvGeminiHint.text = "Optional — enables AI recession commentary on the Recession page. Get a key at aistudio.google.com."
+
+        binding.btnExportAll.setOnClickListener { vm.exportAll30Year() }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    vm.exportLoading.collect { loading ->
+                        binding.btnExportAll.isEnabled = !loading
+                        binding.progressExport.visibility = if (loading) View.VISIBLE else View.GONE
+                    }
+                }
+                launch {
+                    vm.message.collect { Snackbar.make(binding.root, it, Snackbar.LENGTH_LONG).show() }
+                }
+            }
+        }
     }
 
     override fun onDestroyView() { super.onDestroyView(); _binding = null }

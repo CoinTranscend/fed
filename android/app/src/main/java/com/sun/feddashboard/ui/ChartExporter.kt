@@ -676,6 +676,138 @@ object ChartExporter {
         return saveToDownloads(context, bitmap, "fed_hpulse_30yr.png")
     }
 
+    // ── ISI / LSI / LIIMSI / LLMSI 30-year wrappers ──────────────────────────
+
+    fun exportIsiHistory(context: Context, history: List<Pair<String, Float>>, regime: String): String? =
+        exportLongHistory(
+            context    = context,
+            title      = "ISI  —  30-Year Inflation Strength History (Coincident)",
+            history    = history,
+            regime     = regime,
+            fileName   = "fed_isi_30yr.png",
+            footerNote = "Shaded = NBER recessions  ·  ISI: 10-series equal-weight z-score composite" +
+                         "  ·  ELEVATED ≥+0.5 | RISING ≥0.0 | ANCHORED ≥−0.5 | COOLING ≥−1.0 | DEFLATIONARY <−1.0",
+        )
+
+    fun exportLsiHistory(context: Context, history: List<Pair<String, Float>>, regime: String): String? =
+        exportLongHistory(
+            context    = context,
+            title      = "LSI  —  30-Year Labor Strength History (Coincident)",
+            history    = history,
+            regime     = regime,
+            fileName   = "fed_lsi_30yr.png",
+            footerNote = "Shaded = NBER recessions  ·  LSI: 9-series equal-weight z-score composite" +
+                         "  ·  STRONG ≥+0.5 | MODERATE ≥0.0 | SOFTENING ≥−0.5 | WEAK ≥−1.0 | CRITICAL <−1.0",
+        )
+
+    fun exportLiimsiHistory(context: Context, history: List<Pair<String, Float>>, regime: String): String? =
+        exportLongHistory(
+            context    = context,
+            title      = "LIIMSI  —  30-Year Leading Inflation History",
+            history    = history,
+            regime     = regime,
+            fileName   = "fed_liimsi_30yr.png",
+            footerNote = "Shaded = NBER recessions  ·  LIIMSI: 7-series weighted leading z-score composite" +
+                         "  ·  ELEVATED ≥+0.5 | RISING ≥0.0 | ANCHORED ≥−0.5 | COOLING ≥−1.0 | DEFLATIONARY <−1.0",
+        )
+
+    fun exportLlmsiHistory(context: Context, history: List<Pair<String, Float>>, regime: String): String? =
+        exportLongHistory(
+            context    = context,
+            title      = "LLMSI  —  30-Year Leading Labor History",
+            history    = history,
+            regime     = regime,
+            fileName   = "fed_llmsi_30yr.png",
+            footerNote = "Shaded = NBER recessions  ·  LLMSI: 7-series weighted leading z-score composite" +
+                         "  ·  STRONG ≥+0.5 | MODERATE ≥0.0 | SOFTENING ≥−0.5 | WEAK ≥−1.0 | CRITICAL <−1.0",
+        )
+
+    // ── CSV export ────────────────────────────────────────────────────────────
+
+    fun exportAllHistoryCsv(
+        context: Context,
+        isi:    List<Pair<String, Float>>?,
+        lsi:    List<Pair<String, Float>>?,
+        liimsi: List<Pair<String, Float>>?,
+        llmsi:  List<Pair<String, Float>>?,
+        rri:    List<Pair<String, Float>>?,
+        pulse:  List<Pair<String, Float>>?,
+        hpulse: List<HPulseHistoryPoint>?,
+    ): String? {
+        val allMonths = buildSet<String> {
+            isi?.forEach    { add(it.first) }
+            lsi?.forEach    { add(it.first) }
+            liimsi?.forEach { add(it.first) }
+            llmsi?.forEach  { add(it.first) }
+            rri?.forEach    { add(it.first) }
+            pulse?.forEach  { add(it.first) }
+            hpulse?.forEach { add(it.yearMonth) }
+        }.sorted()
+
+        val isiMap    = isi?.toMap()    ?: emptyMap()
+        val lsiMap    = lsi?.toMap()    ?: emptyMap()
+        val liimsiMap = liimsi?.toMap() ?: emptyMap()
+        val llmsiMap  = llmsi?.toMap()  ?: emptyMap()
+        val rriMap    = rri?.toMap()    ?: emptyMap()
+        val pulseMap  = pulse?.toMap()  ?: emptyMap()
+        val hpulseMap = hpulse?.associate { it.yearMonth to it.composite } ?: emptyMap()
+
+        val csv = buildString {
+            appendLine("Month,ISI,LSI,LIIMSI,LLMSI,RRI,PULSE,HPulse")
+            for (m in allMonths) {
+                val row = listOf(
+                    m,
+                    isiMap[m]?.let    { "%.4f".format(it) } ?: "",
+                    lsiMap[m]?.let    { "%.4f".format(it) } ?: "",
+                    liimsiMap[m]?.let { "%.4f".format(it) } ?: "",
+                    llmsiMap[m]?.let  { "%.4f".format(it) } ?: "",
+                    rriMap[m]?.let    { "%.4f".format(it) } ?: "",
+                    pulseMap[m]?.let  { "%.4f".format(it) } ?: "",
+                    hpulseMap[m]?.let { "%.2f".format(it)  } ?: "",
+                )
+                appendLine(row.joinToString(","))
+            }
+        }
+        return saveCsvToDownloads(context, csv, "fed_all_indices_30yr.csv")
+    }
+
+    private fun saveCsvToDownloads(context: Context, csv: String, fileName: String): String? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+            ) ?: return null
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(csv.toByteArray())
+                }
+                values.clear()
+                values.put(MediaStore.Downloads.IS_PENDING, 0)
+                context.contentResolver.update(uri, values, null, null)
+                "Downloads/$fileName"
+            } catch (e: IOException) {
+                context.contentResolver.delete(uri, null, null)
+                null
+            }
+        } else {
+            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            dir.mkdirs()
+            try {
+                FileOutputStream(File(dir, fileName)).use { out ->
+                    out.write(csv.toByteArray())
+                }
+                "Downloads/$fileName"
+            } catch (e: IOException) {
+                null
+            }
+        }
+    }
+
     // ── Persistence ───────────────────────────────────────────────────────────
 
     private fun saveToDownloads(context: Context, bitmap: Bitmap, fileName: String): String? {

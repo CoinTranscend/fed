@@ -145,6 +145,67 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- 30-Year Export -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="30-Year History Export"
+                    android:textColor="@color/colorText"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Downloads 7 PNG charts + 1 CSV to your Downloads folder. Fetches ~50 FRED series going back 30 years — takes 60–90 seconds."
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:layout_marginBottom="12dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnExportAll"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⬇ Export All (PNG + CSV)"
+                        app:backgroundTint="@color/colorSurface"
+                        app:strokeColor="@color/colorTextSecondary"
+                        app:strokeWidth="1dp"
+                        android:textColor="@color/colorText"
+                        android:textSize="12sp" />
+
+                    <ProgressBar
+                        android:id="@+id/progressExport"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="12dp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <TextView
             android:id="@+id/tvVersion"
             android:layout_width="match_parent"
