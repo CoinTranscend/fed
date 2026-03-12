@@ -109,6 +109,16 @@
                 android:textColor="@color/colorText"
                 android:textSize="11sp"
                 android:fontFamily="monospace"
+                android:layout_marginBottom="1dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvLiimsiRecent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
                 android:layout_marginBottom="2dp"
                 android:visibility="gone" />
 
@@ -199,6 +209,16 @@
                 android:textColor="@color/colorText"
                 android:textSize="11sp"
                 android:fontFamily="monospace"
+                android:layout_marginBottom="1dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvLlmsiRecent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorTextSecondary"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
                 android:layout_marginBottom="2dp"
                 android:visibility="gone" />
 

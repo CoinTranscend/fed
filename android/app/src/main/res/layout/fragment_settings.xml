@@ -206,6 +206,56 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Appearance -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:gravity="center_vertical">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="APPEARANCE"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.1"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvThemeLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Dark mode"
+                        android:textColor="@color/colorText"
+                        android:textSize="15sp" />
+
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchDarkMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <TextView
             android:id="@+id/tvVersion"
             android:layout_width="match_parent"

@@ -67,7 +67,7 @@ class FedCompareFragment : Fragment() {
                             binding.tvInflationScore.setTextColor(inflationColor(isi.regime))
                             binding.tvInflationUpdated.text =
                                 "Updated ${isi.updatedAt}  ·  ${isi.lastDataMonth}"
-                            updateInflationRecent(isi.points.takeLast(4).joinToString("   ") {
+                            updateInflationRecent("ISI: " + isi.points.takeLast(5).joinToString("   ") {
                                 "${it.monthLabel} = ${"%+.2f".format(it.value)}"
                             })
                         } else {
@@ -75,6 +75,7 @@ class FedCompareFragment : Fragment() {
                             binding.tvInflationScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvInflationUpdated.text = ""
                             binding.tvInflationRecent.visibility = View.GONE
+                            binding.tvLiimsiRecent.visibility = View.GONE
                         }
                     }
                 }
@@ -88,6 +89,11 @@ class FedCompareFragment : Fragment() {
                                     "ISI", isi.regime, isi.current,
                                     "LIIMSI", liimsi.regime, liimsi.current)
                             }
+                            updateLiimsiRecent("LIIMSI: " + liimsi.points.takeLast(5).joinToString("   ") {
+                                "${it.monthLabel} = ${"%+.2f".format(it.value)}"
+                            })
+                        } else {
+                            binding.tvLiimsiRecent.visibility = View.GONE
                         }
                     }
                 }
@@ -105,7 +111,7 @@ class FedCompareFragment : Fragment() {
                             binding.tvLaborScore.setTextColor(laborColor(lsi.regime))
                             binding.tvLaborUpdated.text =
                                 "Updated ${lsi.updatedAt}  ·  ${lsi.lastDataMonth}"
-                            updateLaborRecent(lsi.points.takeLast(4).joinToString("   ") {
+                            updateLaborRecent("LSI: " + lsi.points.takeLast(5).joinToString("   ") {
                                 "${it.monthLabel} = ${"%+.2f".format(it.value)}"
                             })
                         } else {
@@ -113,6 +119,7 @@ class FedCompareFragment : Fragment() {
                             binding.tvLaborScore.setTextColor(Color.parseColor("#4A6680"))
                             binding.tvLaborUpdated.text = ""
                             binding.tvLaborRecent.visibility = View.GONE
+                            binding.tvLlmsiRecent.visibility = View.GONE
                         }
                     }
                 }
@@ -126,6 +133,11 @@ class FedCompareFragment : Fragment() {
                                     "LSI", lsi.regime, lsi.current,
                                     "LLMSI", llmsi.regime, llmsi.current)
                             }
+                            updateLlmsiRecent("LLMSI: " + llmsi.points.takeLast(5).joinToString("   ") {
+                                "${it.monthLabel} = ${"%+.2f".format(it.value)}"
+                            })
+                        } else {
+                            binding.tvLlmsiRecent.visibility = View.GONE
                         }
                     }
                 }
@@ -144,9 +156,19 @@ class FedCompareFragment : Fragment() {
         binding.tvInflationRecent.visibility = View.VISIBLE
     }
 
+    private fun updateLiimsiRecent(text: String) {
+        binding.tvLiimsiRecent.text = text
+        binding.tvLiimsiRecent.visibility = View.VISIBLE
+    }
+
     private fun updateLaborRecent(text: String) {
         binding.tvLaborRecent.text = text
         binding.tvLaborRecent.visibility = View.VISIBLE
+    }
+
+    private fun updateLlmsiRecent(text: String) {
+        binding.tvLlmsiRecent.text = text
+        binding.tvLlmsiRecent.visibility = View.VISIBLE
     }
 
     // ── Score line ─────────────────────────────────────────────────────────────

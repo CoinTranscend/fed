@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand / accent — slightly brighter teal for dark bg -->
+    <color name="colorPrimary">#26A69A</color>
+    <color name="colorPrimaryVariant">#00897B</color>
+    <color name="colorSecondary">#7986CB</color>
+
+    <!-- Backgrounds -->
+    <color name="colorBackground">#121212</color>
+    <color name="colorSurface">#1E1E1E</color>
+    <color name="colorNavBackground">#1C1C1E</color>
+
+    <!-- Text -->
+    <color name="colorText">#E5E5E7</color>
+    <color name="colorTextSecondary">#8E8E93</color>
+
+    <!-- UI chrome -->
+    <color name="colorDivider">#2C2C2E</color>
+
+    <!-- Nav item states -->
+    <color name="nav_active">#26A69A</color>
+    <color name="nav_inactive">#8E8E93</color>
+</resources>

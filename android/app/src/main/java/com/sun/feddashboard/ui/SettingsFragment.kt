@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
 import com.sun.feddashboard.MainViewModel
+import com.sun.feddashboard.ThemePrefs
 import com.sun.feddashboard.databinding.FragmentSettingsBinding
 import kotlinx.coroutines.launch
 
@@ -54,6 +55,15 @@ class SettingsFragment : Fragment() {
         binding.tvGeminiHint.text = "Optional — enables AI recession commentary on the Recession page. Get a key at aistudio.google.com."
 
         binding.btnExportAll.setOnClickListener { vm.exportAll30Year() }
+
+        val isNight = ThemePrefs.isNightMode(requireContext())
+        binding.switchDarkMode.isChecked = isNight
+        binding.tvThemeLabel.text = if (isNight) "Dark mode" else "Light mode"
+        binding.switchDarkMode.setOnCheckedChangeListener { _, checked ->
+            binding.tvThemeLabel.text = if (checked) "Dark mode" else "Light mode"
+            ThemePrefs.setNightMode(requireContext(), checked)
+            requireActivity().recreate()
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {

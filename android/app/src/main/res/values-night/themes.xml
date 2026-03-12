@@ -7,23 +7,13 @@
         <item name="colorSecondary">@color/colorSecondary</item>
         <item name="android:windowBackground">@color/colorBackground</item>
         <item name="android:statusBarColor">@color/colorBackground</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">@color/colorNavBackground</item>
-        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
         <item name="colorOnSurface">@color/colorText</item>
         <item name="colorSurface">@color/colorSurface</item>
         <item name="colorError">@color/colorError</item>
         <item name="bottomNavigationStyle">@style/BottomNavStyle</item>
-    </style>
-
-    <style name="Theme.FedDashboard.Splash" parent="Theme.FedDashboard">
-        <item name="android:windowFullscreen">true</item>
-        <item name="android:windowBackground">@color/colorBackground</item>
-    </style>
-
-    <style name="BottomNavStyle" parent="Widget.MaterialComponents.BottomNavigationView">
-        <item name="itemBackground">@null</item>
-        <item name="itemRippleColor">@color/colorPrimary</item>
     </style>
 
 </resources>
