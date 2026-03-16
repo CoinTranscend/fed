@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Light whitish-blue widget background -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <gradient
+                android:startColor="#EAF4FD"
+                android:centerColor="#D8ECFA"
+                android:endColor="#C8E3F7"
+                android:angle="135"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <stroke android:width="1dp" android:color="#A0CCE8" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+</layer-list>

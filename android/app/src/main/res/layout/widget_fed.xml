@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fed Dashboard Widget — light sky-blue theme
+  Root must be clickable (launches app) with refresh button separate.
+  Each indicator row: [label] [score/delta] [regime] [sparkline]
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_fed_background"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="8dp">
+
+    <!-- ── Header ─────────────────────────────────────────────────── -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="28dp"
+        android:layout_marginBottom="6dp">
+
+        <TextView
+            android:id="@+id/tv_widget_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:text="FED DASHBOARD"
+            android:textColor="#1A4A7A"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.14" />
+
+        <TextView
+            android:id="@+id/btn_widget_refresh"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:text="↻"
+            android:textColor="#1E6FA8"
+            android:textSize="20sp"
+            android:gravity="center" />
+    </RelativeLayout>
+
+    <!-- ── Column headers ─────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="14dp"
+        android:orientation="horizontal"
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:text="INDEX"
+            android:textColor="#5A88AA"
+            android:textSize="7sp"
+            android:letterSpacing="0.10" />
+
+        <TextView
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:text="SCORE"
+            android:textColor="#5A88AA"
+            android:textSize="7sp"
+            android:letterSpacing="0.10" />
+
+        <TextView
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="REGIME"
+            android:textColor="#5A88AA"
+            android:textSize="7sp"
+            android:letterSpacing="0.10" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="6-MO TREND"
+            android:textColor="#5A88AA"
+            android:textSize="7sp"
+            android:letterSpacing="0.10"
+            android:gravity="center_horizontal" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#A8CCE8"
+        android:layout_marginBottom="4dp"
+        android:text="" />
+
+    <!-- ── LIIMSI row ──────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_liimsi_label"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:text="LIIMSI"
+            android:textColor="#1A5280"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_liimsi_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#0D3A5C"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_liimsi_delta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#3A6F90"
+                android:textSize="8sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_liimsi_regime"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="–"
+            android:textColor="#1A6A9A"
+            android:textSize="8sp"
+            android:letterSpacing="0.06" />
+
+        <ImageView
+            android:id="@+id/iv_liimsi_chart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:contentDescription="LIIMSI trend" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#B8D8EE"
+        android:layout_marginBottom="2dp"
+        android:text="" />
+
+    <!-- ── LLMSI row ──────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_llmsi_label"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:text="LLMSI"
+            android:textColor="#1A5280"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_llmsi_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#0D3A5C"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_llmsi_delta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#3A6F90"
+                android:textSize="8sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_llmsi_regime"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="–"
+            android:textColor="#1A6A9A"
+            android:textSize="8sp"
+            android:letterSpacing="0.06" />
+
+        <ImageView
+            android:id="@+id/iv_llmsi_chart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:contentDescription="LLMSI trend" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#B8D8EE"
+        android:layout_marginBottom="2dp"
+        android:text="" />
+
+    <!-- ── ISI row ────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_isi_label"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:text="ISI"
+            android:textColor="#1A5280"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_isi_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#0D3A5C"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_isi_delta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#3A6F90"
+                android:textSize="8sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_isi_regime"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="–"
+            android:textColor="#1A6A9A"
+            android:textSize="8sp"
+            android:letterSpacing="0.06" />
+
+        <ImageView
+            android:id="@+id/iv_isi_chart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:contentDescription="ISI trend" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#B8D8EE"
+        android:layout_marginBottom="2dp"
+        android:text="" />
+
+    <!-- ── LSI row ────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:id="@+id/tv_lsi_label"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:text="LSI"
+            android:textColor="#1A5280"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_lsi_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#0D3A5C"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_lsi_delta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#3A6F90"
+                android:textSize="8sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_lsi_regime"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="–"
+            android:textColor="#1A6A9A"
+            android:textSize="8sp"
+            android:letterSpacing="0.06" />
+
+        <ImageView
+            android:id="@+id/iv_lsi_chart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:contentDescription="LSI trend" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#B8D8EE"
+        android:layout_marginBottom="2dp"
+        android:text="" />
+
+    <!-- ── RRI row ────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_rri_label"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:text="RRI"
+            android:textColor="#1A5280"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_rri_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#0D3A5C"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_rri_delta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="–"
+                android:textColor="#3A6F90"
+                android:textSize="8sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_rri_regime"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="–"
+            android:textColor="#1A6A9A"
+            android:textSize="8sp"
+            android:letterSpacing="0.06" />
+
+        <ImageView
+            android:id="@+id/iv_rri_chart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:contentDescription="RRI trend" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#A8CCE8"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:text="" />
+
+    <!-- ── Footer: next release + updated time ─────────────────────── -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="22dp">
+
+        <TextView
+            android:id="@+id/tv_next_release"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:text="Next: –"
+            android:textColor="#2E6A90"
+            android:textSize="8sp" />
+
+        <TextView
+            android:id="@+id/tv_widget_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:text="–"
+            android:textColor="#5A88AA"
+            android:textSize="8sp" />
+    </RelativeLayout>
+
+</LinearLayout>

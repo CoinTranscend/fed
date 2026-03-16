@@ -206,6 +206,107 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Widget -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="0dp"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="HOME SCREEN WIDGET"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:letterSpacing="0.1"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvWidgetStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Widget name in picker: Fed Dashboard"
+                    android:textColor="@color/colorText"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Enable toggle row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Enable widget"
+                            android:textColor="@color/colorText"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvWidgetToggleHint"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Fetches data from FRED on each refresh"
+                            android:textColor="@color/colorTextSecondary"
+                            android:textSize="11sp" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchWidget"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <!-- Refresh Now button -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRefreshWidget"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="↻  Refresh Widget Now"
+                        app:backgroundTint="@color/colorIndigo"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvWidgetRefreshHint"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="11sp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Appearance -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"

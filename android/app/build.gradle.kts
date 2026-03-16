@@ -11,8 +11,8 @@ android {
         applicationId = "com.sun.feddashboard"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.8"
+        versionCode = 7
+        versionName = "1.9"
     }
 
     buildFeatures {
@@ -58,4 +58,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.11.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

@@ -116,6 +116,41 @@ object ReleaseSchedule {
         "ICSA", "UMCSENT", "PCOPPUSDM", "GOLDAMGBD228NLBM", "M2SL", "CPIAUCSL",
     )
 
+    /** Union of all series IDs used across the 5 widget indices. */
+    fun widgetSeriesIds(): List<String> = (
+        listOf(
+            // LIIMSI
+            "T5YIE", "PPIFIS", "FLEXCPIM159SFRBATL", "MICH",
+            "CES0500000003", "PPIACO", "T5YIFR",
+            // LLMSI
+            "ICSA", "AWHMAN", "TEMPHELPS", "JTSJOL", "JTSLDL", "JTSQUR", "CCSA",
+        ) + isiLsiSeriesIds() + rriSeriesIds()
+    ).distinct()
+
+    /**
+     * Returns a short "Name  Date" string for the single nearest upcoming non-daily
+     * release across the given series — intended for the widget footer.
+     *
+     * Example: "Employment Situation  Apr 3"
+     * Returns null if no upcoming release is found.
+     */
+    fun nextSingleRelease(seriesIds: List<String>, today: LocalDate = LocalDate.now()): String? {
+        val skipDaily = setOf(Release.TREASURY_DAILY, Release.ICE_DAILY)
+        data class Row(val rel: Release, val nextDt: LocalDate, val label: String)
+        val seen = mutableSetOf<Release>()
+        val rows = mutableListOf<Row>()
+        for (id in seriesIds) {
+            val rel = SERIES_RELEASE[id] ?: continue
+            if (rel in skipDaily) continue
+            if (!seen.add(rel)) continue
+            val dt = nextDate(rel, today)
+            rows.add(Row(rel, dt, formatNextDate(rel, dt)))
+        }
+        rows.sortBy { it.nextDt }
+        val first = rows.firstOrNull() ?: return null
+        return "${first.rel.displayName}  ${first.label}"
+    }
+
     fun isiLsiSeriesIds() = listOf(
         "CPILFESL", "PCEPILFE", "PCETRIM12M159SFRBDAL", "CORESTICKM159SFRBATL",
         "PPIFIS", "PPIACO", "T5YIE", "T10YIE", "CUSR0000SAH1", "MICH",

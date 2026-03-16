@@ -30,6 +30,19 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Fed Dashboard widget -->
+        <receiver
+            android:name=".widget.FedWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sun.feddashboard.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fed_info" />
+        </receiver>
+
     </application>
 
 </manifest>
